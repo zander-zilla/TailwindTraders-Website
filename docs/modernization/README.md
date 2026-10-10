@@ -1,7 +1,7 @@
 # Tailwind Traders — AI-assisted modernization
 
 This fork is a customer-facing demo of using AI to modernize a legacy .NET web app, one reviewed PR per phase.
-The full plan with estimates and risks is in [`/PLAN.md`](../../PLAN.md). Design decisions are recorded as [ADRs](adr/).
+The full plan with estimates and risks is in [`/PLAN.md`](../../PLAN.md). Design decisions are recorded as [ADRs](adr/). The current-state data flow (before the database migration) is documented in [data-flow.md](data-flow.md).
 
 ## Goals
 1. Upgrade from **.NET 5** (EOL 2022) to **.NET 10 LTS**.
@@ -71,6 +71,9 @@ flowchart LR
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⏳ Not started | — |
 | 7 | Frontend upgrade (Vite, React 18/19) — stretch | ⏳ Not started | — |
 | 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |
+
+## Data flow
+- [Current-state data flow](data-flow.md): stores, ER diagram, seeding, per-use-case sequence diagrams and Phase 3a/3b migration impact.
 
 ## Architecture Decision Records
 | # | Decision | Status |
