@@ -2,7 +2,7 @@
 
 ## Status / next step
 - [x] Phase 0 — Baseline & safety net — DONE (PR open on fork, branch `phase-0-baseline`): 10 xUnit characterization tests (WebApplicationFactory + Testcontainers SQL Server 2022 + Mongo 7), all passing on .NET 5. Found 2 legacy bugs (no UseAuthorization → [Authorize] endpoints 500; login always 400) + unfiltered product list returns 0. Legacy Docker image build not reproduced in the agent box (docker vfs 'invalid argument' error in nested Docker) — see PR.
-- [ ] Phase 1 — .NET 5 → .NET 10 LTS — IN PROGRESS (branch `phase-1-dotnet10`, stacked on phase-0)
+- [x] Phase 1 — .NET 5 → .NET 10 LTS — DONE (PR open on fork, branch `phase-1-dotnet10`, base `phase-0-baseline`): net10.0 + minimal hosting; Microsoft.Data.SqlClient; ImageSharp → **SkiaSharp** (ImageSharp 3.x CVEs, 4.x needs a commercial license); CsvHelper 33, Mongo 3.12, OnnxRuntime 1.22, Testcontainers 4.16; Personalizer, App Insights resource ids/subscription id, SpaServices, Razor Error page removed; 4 legacy bugs fixed; frontend builds on Node 22 (sass, react-scripts 5); Dockerfile .NET 10/Node 22 non-root :8080 builds and runs; 11/11 tests pass; 0 vulnerable NuGet packages in the web project. SQL Server + Dapper kept (Phase 3).
 - [ ] Phase 2 — Containerize properly — NOT STARTED
 - [ ] Phase 3 — SQL Server → PostgreSQL (EF Core 10 + Npgsql) + MongoDB cart → DynamoDB — NOT STARTED
 - [ ] Phase 4 — Kubernetes on Amazon EKS (Helm, optional Terraform/CDK) — NOT STARTED
@@ -17,7 +17,7 @@
 - Data layer: **EF Core 10 + Npgsql (Option B) — CHOSEN**; keep-Dapper (Option A) NOT chosen. See §2a.
 - Shopping cart: **MongoDB/Cosmos → Amazon DynamoDB** (AWSSDK.DynamoDBv2, PK = user/session id, TTL for abandoned carts, on-demand capacity, DynamoDB Local/LocalStack locally, IAM via EKS Pod Identity). jsonb/DocumentDB alternatives dropped.
 
-**Next step:** finish Phase 1 (.NET 10) PR, then Phase 2 (containers). Repo: fork `zander-zilla/TailwindTraders-Website` (PRs target the fork's branches only; never upstream).
+**Next step:** review/merge PR #1 then PR #2 (agent does not merge). Then Phase 2 (hardened chiseled image — current image ~956 MB, Trivy scan, compose with Postgres/DynamoDB Local). Repo: fork `zander-zilla/TailwindTraders-Website` (PRs target the fork only; never upstream).
 Analysis clone (read-only): `/workspace/modernization/TailwindTraders-Website` (shallow, nothing pushed).
 
 ---
@@ -147,7 +147,9 @@ Decision recorded in §2a: **Option B (EF Core 10 + Npgsql)**; Dapper and `Syste
 - **EF Core migration scope creep:** keep LINQ rewrite limited to `ProductService`; watch N+1 / tracking (`AsNoTracking`, compiled queries); Dapper is not a fallback (decision recorded).
 - **AWS cost/quotas** for EKS + Aurora in a demo account; use kind + Postgres container for rehearsals, Aurora Serverless v2 for cloud.
 - **Frontend build is broken on modern Node** (node-sass 4, CRA 3 + Node 10). Even Phase 1–2 require at least a minimal frontend build fix (swap node-sass → sass, possibly keep Node 16/18 temporarily) or Vite migration.
-- **ImageSharp 3.x** licence (Six Labors Split License) and API breaks; OnnxRuntime model compatibility with newer runtime — test image search.
+- ~~ImageSharp licence/API breaks~~ — resolved in Phase 1 by switching to SkiaSharp (MIT); ONNX image search covered by a smoke test.
+- **Frontend still legacy** after Phase 1 (React 16, CRA 5 needs `--legacy-peer-deps`, ACS/Fluent/Cosmos pinned to 2021 versions, large bundle) — Phase 7.
+- JWT demo signing key changed (>=256 bits required by .NET 10); tokens issued by the old app are invalid — set `SecurityKey` via secrets in Phase 4.
 - **CsvHelper** breaking API changes.
 - **PG dialect:** case-sensitive LIKE, identifier case folding, seeding throughput; no stored procs/IDENTITY, so risk is low overall.
 - Hard-coded Azure subscription id in csproj; no existing tests → regressions hard to detect until Phase 0 is done.
