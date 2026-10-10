@@ -1,0 +1,87 @@
+# Tailwind Traders — AI-assisted modernization
+
+This fork is a customer-facing demo of using AI to modernize a legacy .NET web app, one reviewed PR per phase.
+The full plan with estimates and risks is in [`/PLAN.md`](../../PLAN.md). Design decisions are recorded as [ADRs](adr/).
+
+## Goals
+1. Upgrade from **.NET 5** (EOL 2022) to **.NET 10 LTS**.
+2. Host on **Kubernetes** — **Amazon EKS** with Helm (local demo on kind).
+3. Migrate the catalog database from **SQL Server → PostgreSQL** (Amazon Aurora/RDS) with **EF Core 10**.
+4. Move the shopping cart from **MongoDB/Cosmos DB → Amazon DynamoDB**.
+5. Add the production basics the legacy app lacks: tests, CI/CD, health checks, observability, secrets management.
+
+## Before: legacy architecture
+```mermaid
+flowchart LR
+    user([Browser]) --> web
+    subgraph Azure["Azure (App Service / AKS)"]
+        web["Tailwind.Traders.Web<br/>ASP.NET Core .NET 5<br/>React 16 SPA via SpaServices"]
+        sql[("Azure SQL / SQL Server<br/>Dapper + hand-written T-SQL")]
+        mongo[("Cosmos DB (Mongo API)<br/>shopping cart")]
+        pers["Azure Personalizer<br/>(retired)"]
+        ai["Application Insights"]
+        blob[("Azure Blob Storage<br/>image uploads")]
+    end
+    web --> sql
+    web --> mongo
+    web --> pers
+    web --> ai
+    web --> blob
+    web -. "seed CSVs at startup" .-> gh["GitHub raw<br/>(TailwindTraders-Backend)"]
+    ci["GitHub Actions<br/>ubuntu-16.04, Docker Hub"] --> Azure
+```
+
+## After: target architecture
+```mermaid
+flowchart LR
+    user([Browser]) --> alb["AWS Load Balancer Controller<br/>(ALB + ACM)"]
+    subgraph AWS
+        subgraph EKS["Amazon EKS"]
+            alb --> web["Tailwind.Traders.Web<br/>.NET 10 minimal hosting<br/>SPA as static files<br/>non-root container :8080"]
+            eso["External Secrets Operator"]
+            adot["ADOT Collector"]
+            job["EF Core migration bundle<br/>(Helm hook Job)"]
+        end
+        aurora[("Aurora / RDS PostgreSQL<br/>EF Core 10 + Npgsql (+ pgvector)")]
+        ddb[("Amazon DynamoDB<br/>cart: PK cartId, TTL, on-demand")]
+        sm["AWS Secrets Manager"]
+        cw["CloudWatch + X-Ray"]
+        ecr["Amazon ECR"]
+    end
+    web --> aurora
+    web -- "EKS Pod Identity" --> ddb
+    job --> aurora
+    sm --> eso --> web
+    web -- OTLP --> adot --> cw
+    gha["GitHub Actions"] -- "OIDC → IAM role" --> ecr
+    gha -- "helm upgrade" --> EKS
+    ecr --> EKS
+```
+
+## Roadmap
+| Phase | Scope | Status | PR |
+|---|---|---|---|
+| 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Done — in review | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
+| 1 | .NET 5 → .NET 10, minimal hosting, package upgrades, legacy bug fixes, Node 22 frontend build | ✅ Done — in review | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
+| 2 | Hardened containers (chiseled, Trivy), local compose with Postgres + DynamoDB Local | ⏳ Not started | — |
+| 3a | SQL Server → PostgreSQL with EF Core 10 + Npgsql | ⏳ Not started | — |
+| 3b | Cart MongoDB → Amazon DynamoDB | ⏳ Not started | — |
+| 4 | Amazon EKS + Helm, Secrets Manager, ALB, Pod Identity (optional Terraform/CDK) | ⏳ Not started | — |
+| 5 | CI/CD: GitHub Actions → ECR/EKS via OIDC | ⏳ Not started | — |
+| 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⏳ Not started | — |
+| 7 | Frontend upgrade (Vite, React 18/19) — stretch | ⏳ Not started | — |
+| 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |
+
+## Architecture Decision Records
+| # | Decision | Status |
+|---|---|---|
+| [0001](adr/0001-dotnet10-lts-minimal-hosting.md) | .NET 10 LTS with minimal hosting | Accepted |
+| [0002](adr/0002-spa-served-as-static-files.md) | Serve the React SPA as static files | Accepted |
+| [0003](adr/0003-skiasharp-replaces-imagesharp.md) | SkiaSharp replaces ImageSharp | Accepted |
+| [0004](adr/0004-remove-personalizer-and-app-insights-sdk.md) | Remove Azure Personalizer and the App Insights SDK | Accepted |
+| [0005](adr/0005-fix-settings-secret-leak.md) | Fix connection-string leak via `/api/settings` | Accepted |
+| [0006](adr/0006-target-aws.md) | Target AWS as the cloud platform | Accepted |
+| [0007](adr/0007-ef-core-npgsql-over-dapper.md) | EF Core 10 + Npgsql instead of Dapper | Proposed (until Phase 3) |
+| [0008](adr/0008-dynamodb-for-cart.md) | Amazon DynamoDB for the shopping cart | Accepted |
+| [0009](adr/0009-eks-and-helm.md) | Amazon EKS + Helm for hosting | Accepted |
+| [0010](adr/0010-github-oidc-to-aws.md) | GitHub Actions OIDC to AWS IAM | Accepted |

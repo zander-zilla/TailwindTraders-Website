@@ -1,5 +1,10 @@
 # Tailwind Traders Website
 
+> ## Modernization
+> This fork is an **AI-assisted modernization demo**: .NET 5 → .NET 10 LTS, Azure → AWS (EKS, Aurora PostgreSQL + EF Core, DynamoDB, ECR, Secrets Manager, ADOT), delivered phase by phase via PRs.
+> See **[docs/modernization](docs/modernization/README.md)** (architecture before/after, roadmap) and the **[ADRs](docs/modernization/adr/)**; detailed plan in [PLAN.md](PLAN.md).
+
+
 ![Tailwind Traders Website](Documents/Images/Website.png)
 
 [![Build status](https://dev.azure.com/TailwindTraders/Website/_apis/build/status/Website-CI)](https://dev.azure.com/TailwindTraders/Website/_build?definitionId=22)
