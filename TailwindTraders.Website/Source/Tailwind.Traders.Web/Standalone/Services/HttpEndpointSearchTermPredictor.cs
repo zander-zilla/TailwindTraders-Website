@@ -1,8 +1,6 @@
+using SkiaSharp;
 using System.IO;
 using System.Threading.Tasks;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Processing;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Net.Http;
@@ -37,21 +35,20 @@ namespace Tailwind.Traders.Web.Standalone.Services
         async Task<string> IImageSearchTermPredictor.PredictSearchTerm(Stream imageStream)
         {
             var eventId = new EventId();
-            using var image = await Image.LoadAsync(imageStream);
+            using var image = SKBitmap.Decode(imageStream);
 
-            // resize image constraining it to 500px in any dimension
-            using var resizedImage = image.Clone(
-                ctx => ctx.Resize(new ResizeOptions {
-                    Size = new Size(500,500),
-                    Mode = ResizeMode.Max
-                }));
-            
+            // resize image constraining it to 500px in any dimension (keep aspect ratio, never upscale)
+            var scale = Math.Min(1.0, Math.Min(500.0 / image.Width, 500.0 / image.Height));
+            using var resizedImage = image.Resize(
+                new SKImageInfo((int)Math.Round(image.Width * scale), (int)Math.Round(image.Height * scale)),
+                new SKSamplingOptions(SKFilterMode.Linear));
+
             // upload the file
             var blobContainerClient = blobServiceClient.GetBlobContainerClient("website-uploads");
             var filename = Guid.NewGuid().ToString() + ".jpg";
             var cloudBlockBlob = blobContainerClient.GetBlockBlobClient(filename);
             var blobStream = new MemoryStream();
-            await resizedImage.SaveAsJpegAsync(blobStream);
+            using (var encoded = resizedImage.Encode(SKEncodedImageFormat.Jpeg, 90)) { encoded.SaveTo(blobStream); }
             blobStream.Seek(0,SeekOrigin.Begin);
             await cloudBlockBlob.UploadAsync(blobStream);
 

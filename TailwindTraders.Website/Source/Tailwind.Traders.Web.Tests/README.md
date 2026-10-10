@@ -6,8 +6,7 @@ SQL Server + MongoDB) and pin down what the legacy app returns today. Later phas
 PostgreSQL + EF Core, DynamoDB) must keep them green — or consciously change a pinned value.
 
 ## Prerequisites
-- .NET SDK 10 (builds the net5.0 project too) **and** the .NET 5 runtime (for Phase 0 only). On modern Linux
-  the .NET 5 runtime needs `libssl1.1`.
+- .NET SDK 10 (as of Phase 1 both projects target `net10.0`; the Phase 0 branch needed the .NET 5 runtime + `libssl1.1`).
 - Docker (Testcontainers starts `mcr.microsoft.com/mssql/server:2022-latest` and `mongo:7`).
 - Internet access: on first start the app seeds SQL from CSVs in the TailwindTraders-Backend GitHub repo.
 
@@ -29,7 +28,9 @@ export TT_MONGO_CONNECTION='mongodb://localhost:27017'
 | `/api/settings` | 200, JSON config for the SPA |
 | `/api/v1/products` (no filter) | 200, **0 products** (WHERE clause quirk — UI always filters) |
 | `/api/v1/products/landing` | `[]` |
-| **Legacy bug 1** | No `app.UseAuthorization()` → every `[Authorize]` endpoint (profile, shopping cart) returns **500** |
-| **Legacy bug 2** | `TokenRequest` uses Newtonsoft `[JsonProperty("grant_type")]` but the app serializes with System.Text.Json → standalone **login always returns 400** (so the cart flow can't be exercised end-to-end) |
-
-The cart round-trip test is already written and activates automatically once login returns 200 (Phase 1 fixes both bugs).
+| Legacy bug 1 (fixed Phase 1) | No `app.UseAuthorization()` → `[Authorize]` endpoints returned **500**; now **401** for anonymous |
+| Legacy bug 2 (fixed Phase 1) | Newtonsoft `[JsonProperty("grant_type")]` ignored by System.Text.Json → login always **400**; now **200** + JWT |
+| Legacy bug 3 (fixed Phase 1) | Newtonsoft `[JsonIgnore]` ignored → `/api/settings` **leaked SQL/Mongo connection strings** to the browser |
+| Legacy bug 4 (fixed Phase 1) | Cart items serialized as `guid` but the UI reads `_cdbid` → UI qty update/delete never matched |
+| Cart | login → add → get → update qty → delete round trip (runs since Phase 1) |
+| Image search | embedded ONNX model classifies an uploaded image (200/404, never 500) |

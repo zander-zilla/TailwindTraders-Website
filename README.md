@@ -194,7 +194,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-## Modernization demo (fork) — Phase 0: baseline
+## Modernization demo (fork) — Phases 0–1
 
 This fork is being modernized step by step (see [PLAN.md](PLAN.md)). Phase 0 adds a safety net before any code changes:
 
@@ -203,6 +203,6 @@ This fork is being modernized step by step (see [PLAN.md](PLAN.md)). Phase 0 add
   cd TailwindTraders.Website/Source
   dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true
   ```
-  Requires Docker, the .NET 10 SDK plus the .NET 5 runtime (with `libssl1.1` on modern Linux), and internet access for seed CSVs.
+  Requires Docker, the .NET 10 SDK, and internet access for seed CSVs.
 - **Run the legacy app locally (Standalone mode):** `docker compose -f TailwindTraders.Website/Source/docker-compose.standalone.yml up --build`, then browse http://localhost:2000.
-  Or without Docker for the web app: start SQL Server + Mongo, set `SqlConnectionString` / `MongoConnectionString`, and `dotnet run -p:BuildingDocker=true` in `Source/Tailwind.Traders.Web` (APIs only; the legacy React build needs Node 10 + node-sass 4).
+  Or without Docker for the web app: start SQL Server + Mongo, set `SqlConnectionString`, `MongoConnectionString`, `ApiUrl=/api/v1`, `ApiUrlShoppingCart=/api/v1`; run `npm ci --legacy-peer-deps && npm run build` in `ClientApp` (Node 22), then `dotnet run -p:BuildingDocker=true` in `Source/Tailwind.Traders.Web` (Phase 1: .NET 10, SPA served from `ClientApp/build`).

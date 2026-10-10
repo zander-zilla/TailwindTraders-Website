@@ -5,9 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace Tailwind.Traders.Web.Standalone.Services
 {
@@ -36,26 +34,18 @@ namespace Tailwind.Traders.Web.Standalone.Services
         private DenseTensor<float> ConvertImageToTensor(Stream imageStream)
         {
             var data = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
-            using (var image = Image.Load<Rgb24>(imageStream))
+            // SkiaSharp (MIT) replaces ImageSharp: ImageSharp 3.x has open CVEs and 4.x requires a commercial license key.
+            using var original = SKBitmap.Decode(imageStream);
+            using var resized = original.Resize(new SKImageInfo(224, 224, SKColorType.Rgba8888), new SKSamplingOptions(SKFilterMode.Linear));
+            for (var y = 0; y < resized.Height; y++)
             {
-                image.Mutate(ctx => ctx.Resize(new ResizeOptions
+                for (var x = 0; x < resized.Width; x++)
                 {
-                    Size = new Size(224, 224),
-                    Mode = ResizeMode.Stretch
-                }));
-                image.ProcessPixelRows(accessor =>
-                {
-                    for (var y = 0; y < accessor.Height; y++)
-                    {
-                        var row = accessor.GetRowSpan(y);
-                        for (var x = 0; x < row.Length; x++)
-                        {
-                            data[0, 0, x, y] = row[x].B;
-                            data[0, 1, x, y] = row[x].G;
-                            data[0, 2, x, y] = row[x].R;
-                        }
-                    }
-                });
+                    var color = resized.GetPixel(x, y);
+                    data[0, 0, x, y] = color.Blue;
+                    data[0, 1, x, y] = color.Green;
+                    data[0, 2, x, y] = color.Red;
+                }
             }
             return data;
         }
