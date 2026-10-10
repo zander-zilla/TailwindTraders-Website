@@ -14,7 +14,7 @@ using var startupLoggerFactory = LoggerFactory.Create(l => l.AddConsole());
 var startupLogger = startupLoggerFactory.CreateLogger("Startup");
 
 builder.Services.AddControllers();
-builder.Services.AddRazorPages();
+builder.Services.AddProblemDetails();
 builder.Services.Configure<Settings>(builder.Configuration);
 builder.Services.AddStandalone(builder.Configuration, startupLogger);
 
@@ -26,7 +26,7 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler(); // ProblemDetails (Razor Error page removed)
 }
 
 // React SPA: served as static files from ClientApp/build (built by `npm run build` / the Dockerfile).
@@ -47,7 +47,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapControllerRoute(name: "default", pattern: "{controller}/{action=Index}/{id?}");
-app.MapRazorPages();
 
 if (spaFiles != null)
 {
