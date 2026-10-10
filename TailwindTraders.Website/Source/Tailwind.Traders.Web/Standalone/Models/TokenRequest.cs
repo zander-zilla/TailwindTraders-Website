@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Tailwind.Traders.Web.Standalone.Models
 {
@@ -8,7 +8,7 @@ namespace Tailwind.Traders.Web.Standalone.Models
 
         public string Password { get; set; }
         
-        [JsonProperty(PropertyName = "grant_type")]
+        [JsonPropertyName("grant_type")]
         public string GrantType { get; set; }
     }
 }

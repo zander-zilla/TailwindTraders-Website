@@ -1,8 +1,7 @@
 using System;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Text;
-using Microsoft.ApplicationInsights;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +10,6 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
-using MongoDB.Driver.Core.Events;
 using Tailwind.Traders.Web.Standalone.Data;
 using Tailwind.Traders.Web.Standalone.Services;
 
@@ -29,32 +27,9 @@ namespace Tailwind.Traders.Web.Standalone
             services.AddScoped<SqlConnection>(
                 _ => new SqlConnection(config["SqlConnectionString"]));
 
-            var telemetryClient = new TelemetryClient();
             var mongoConnectionString = config["MongoConnectionString"] ?? "mongodb://localhost:27017";
             var mongoClientSettings = MongoClientSettings.FromConnectionString(mongoConnectionString);
-            mongoClientSettings.ClusterConfigurator = cc =>
-            {
-                cc.Subscribe<CommandSucceededEvent>(e =>
-                {
-                    telemetryClient.TrackDependency(
-                        "mongodb", 
-                        mongoClientSettings.Server.Host, 
-                        null, 
-                        DateTimeOffset.UtcNow.AddMilliseconds(-1 * e.Duration.TotalMilliseconds), 
-                        e.Duration, 
-                        success: true);
-                });
-                cc.Subscribe<CommandFailedEvent>(e =>
-                {
-                    telemetryClient.TrackDependency(
-                        "mongodb", 
-                        mongoClientSettings.Server.Host, 
-                        e.Failure.ToString(), 
-                        DateTimeOffset.UtcNow.AddMilliseconds(-1 * e.Duration.TotalMilliseconds), 
-                        e.Duration, 
-                        success: false);
-                });
-            };
+            // App Insights dependency tracking for Mongo removed (Azure-specific); OpenTelemetry arrives in Phase 6.
             var mongoClient = new MongoClient(mongoClientSettings);
             services.AddSingleton(mongoClient);
 
@@ -104,8 +79,6 @@ namespace Tailwind.Traders.Web.Standalone
             {
                 return;
             }
-
-            app.UseAuthentication();
 
             var ProductImagesPath = Path.Combine(Directory.GetCurrentDirectory(), "app_data", "productimages");
             if (Directory.Exists(ProductImagesPath))

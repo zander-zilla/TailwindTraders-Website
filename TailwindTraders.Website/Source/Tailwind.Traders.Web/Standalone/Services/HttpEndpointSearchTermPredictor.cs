@@ -11,7 +11,6 @@ using System.Runtime.Serialization;
 using Microsoft.Extensions.Logging;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
-using SixLabors.Primitives;
 
 namespace Tailwind.Traders.Web.Standalone.Services
 {
@@ -38,11 +37,10 @@ namespace Tailwind.Traders.Web.Standalone.Services
         async Task<string> IImageSearchTermPredictor.PredictSearchTerm(Stream imageStream)
         {
             var eventId = new EventId();
-            IImageFormat imageFormat;
-            var image = Image.Load(imageStream, out imageFormat);
+            using var image = await Image.LoadAsync(imageStream);
 
             // resize image constraining it to 500px in any dimension
-            var resizedImage = image.Clone(
+            using var resizedImage = image.Clone(
                 ctx => ctx.Resize(new ResizeOptions {
                     Size = new Size(500,500),
                     Mode = ResizeMode.Max
@@ -53,7 +51,7 @@ namespace Tailwind.Traders.Web.Standalone.Services
             var filename = Guid.NewGuid().ToString() + ".jpg";
             var cloudBlockBlob = blobContainerClient.GetBlockBlobClient(filename);
             var blobStream = new MemoryStream();
-            resizedImage.SaveAsJpeg(blobStream);
+            await resizedImage.SaveAsJpegAsync(blobStream);
             blobStream.Seek(0,SeekOrigin.Begin);
             await cloudBlockBlob.UploadAsync(blobStream);
 

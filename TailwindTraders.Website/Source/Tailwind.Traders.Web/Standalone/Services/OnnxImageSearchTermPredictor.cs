@@ -6,9 +6,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.Processing;
-using SixLabors.Primitives;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Tailwind.Traders.Web.Standalone.Services
 {
@@ -37,23 +36,26 @@ namespace Tailwind.Traders.Web.Standalone.Services
         private DenseTensor<float> ConvertImageToTensor(Stream imageStream)
         {
             var data = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
-            using (var image = Image.Load(imageStream))
+            using (var image = Image.Load<Rgb24>(imageStream))
             {
                 image.Mutate(ctx => ctx.Resize(new ResizeOptions
                 {
                     Size = new Size(224, 224),
                     Mode = ResizeMode.Stretch
                 }));
-                for (var x = 0; x < image.Width; x++)
+                image.ProcessPixelRows(accessor =>
                 {
-                    for (var y = 0; y < image.Height; y++)
+                    for (var y = 0; y < accessor.Height; y++)
                     {
-                        var color = image.GetPixelRowSpan(y)[x];
-                        data[0, 0, x, y] = color.B;
-                        data[0, 1, x, y] = color.G;
-                        data[0, 2, x, y] = color.R;
+                        var row = accessor.GetRowSpan(y);
+                        for (var x = 0; x < row.Length; x++)
+                        {
+                            data[0, 0, x, y] = row[x].B;
+                            data[0, 1, x, y] = row[x].G;
+                            data[0, 2, x, y] = row[x].R;
+                        }
                     }
-                }
+                });
             }
             return data;
         }
