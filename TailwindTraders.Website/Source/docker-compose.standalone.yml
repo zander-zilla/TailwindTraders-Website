@@ -1,0 +1,25 @@
+# Phase 0 baseline: run the legacy website in "Standalone" mode with local SQL Server + MongoDB.
+#   docker compose -f docker-compose.standalone.yml up --build
+# then open http://localhost:2000
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Passw0rd!123"
+    ports: ["1433:1433"]
+  mongo:
+    image: mongo:7
+    ports: ["27017:27017"]
+  web:
+    build:
+      context: Tailwind.Traders.Web
+      dockerfile: Dockerfile
+    depends_on: [sql, mongo]
+    restart: on-failure   # SQL Server takes ~20s to accept connections; app seeds DB on startup
+    environment:
+      SqlConnectionString: "Server=sql,1433;Database=master;User Id=sa;Password=Passw0rd!123;TrustServerCertificate=true"
+      MongoConnectionString: "mongodb://mongo:27017"
+      ApiUrl: "/api/v1"
+      ApiUrlShoppingCart: "/api/v1"
+    ports: ["2000:80"]
