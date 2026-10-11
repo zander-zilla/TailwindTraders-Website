@@ -37,6 +37,7 @@ namespace Tailwind.Traders.Web.Tests
             // Phase 1 fix (legacy bug 3): Newtonsoft [JsonIgnore] was ignored by System.Text.Json, so the
             // .NET 5 app leaked SqlConnectionString / MongoConnectionString (with passwords) to the browser.
             Assert.False(json.TryGetProperty("sqlConnectionString", out _), "SQL connection string leaked");
+            Assert.False(json.TryGetProperty("connectionStrings", out _), "Connection strings leaked");
             Assert.False(json.TryGetProperty("mongoConnectionString", out _), "Mongo connection string leaked");
         }
 
@@ -140,7 +141,7 @@ namespace Tailwind.Traders.Web.Tests
         }
     }
 
-    /// <summary>Golden values captured from the legacy .NET 5 app (seed CSVs from TailwindTraders-Backend).</summary>
+    /// <summary>Golden values captured from the legacy .NET 5 app on SQL Server; unchanged on PostgreSQL + EF Core (Phase 3a).</summary>
     internal static class Baseline
     {
         public const int BrandCount = 4;

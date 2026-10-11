@@ -13,8 +13,6 @@ namespace Tailwind.Traders.Web
         public string ApiUrlShoppingCart { get; set; }
         public bool UseB2C { get; set; }
         [JsonIgnore]
-        public string SqlConnectionString { get; set; }
-        [JsonIgnore]
         public string MongoConnectionString { get; set; }
 
         public B2CAuth B2CAuth { get; set; }
