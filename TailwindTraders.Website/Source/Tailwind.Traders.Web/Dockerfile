@@ -7,7 +7,7 @@ ARG DOTNET_VERSION=10.0
 ARG NODE_VERSION=22
 
 # ---------- 1. SPA build ----------
-FROM node:${NODE_VERSION}-alpine AS build-node
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS build-node
 WORKDIR /src/ClientApp
 COPY ClientApp/package.json ClientApp/package-lock.json ./
 RUN npm ci --legacy-peer-deps --no-audit --no-fund
@@ -15,13 +15,18 @@ COPY ClientApp/ ./
 RUN npm run build && rm -rf node_modules
 
 # ---------- 2. .NET publish ----------
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build-net
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build-net
+# Publish for ONE runtime identifier: OnnxRuntime + SkiaSharp ship native libs for ~9 platforms
+# (~650 MB). linux-x64 or linux-arm64 (AWS Graviton) is picked from the target platform.
+ARG TARGETARCH
 ENV BuildingDocker=true DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 WORKDIR /src
 COPY Tailwind.Traders.Web.csproj ./
-RUN dotnet restore
+RUN RID=linux-$([ "$TARGETARCH" = "arm64" ] && echo arm64 || echo x64) \
+ && dotnet restore -r $RID
 COPY . .
-RUN dotnet publish -c Release -o /app --no-restore /p:UseAppHost=false
+RUN RID=linux-$([ "$TARGETARCH" = "arm64" ] && echo arm64 || echo x64) \
+ && dotnet publish -c Release -r $RID --self-contained false -o /app --no-restore /p:UseAppHost=false
 
 # ---------- 3. Runtime (chiseled, non-root) ----------
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-noble-chiseled-extra AS runtime
