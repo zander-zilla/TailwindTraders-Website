@@ -1,0 +1,142 @@
+name: deploy-aws
+
+# Build an arm64 (Graviton) image, push to ECR tagged by commit SHA, helm upgrade on EKS, smoke-test via the ALB.
+# Configuration = GitHub repository *variables* (not secrets), produced by `terraform output github_variables`:
+#   AWS_ROLE_ARN, AWS_REGION, EKS_CLUSTER_NAME, ECR_REPOSITORY_URL, AURORA_ENDPOINT, AURORA_SECRET_ARN,
+#   JWT_SECRET_NAME, CART_TABLE_NAME, APP_HOST (optional), ACM_CERTIFICATE_ARN (optional)
+# No long-lived AWS keys: GitHub OIDC -> IAM role (trust: this repo's main branch / "aws" environment only).
+# If AWS_ROLE_ARN is unset the workflow skips with a notice.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "infra/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+env:
+  NAMESPACE: tailwindtraders
+  RELEASE: tailwindtraders
+  CHART: deploy/helm/tailwindtraders
+
+jobs:
+  not-configured:
+    if: vars.AWS_ROLE_ARN == ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::notice title=deploy-aws skipped::AWS is not configured (repository variable AWS_ROLE_ARN is unset). See docs/modernization/aws-setup.md."
+
+  deploy:
+    if: vars.AWS_ROLE_ARN != ''
+    runs-on: ubuntu-24.04-arm # native arm64 build for Graviton nodes
+    environment:
+      name: aws
+      url: ${{ steps.smoke.outputs.url }}
+    permissions:
+      contents: read
+      id-token: write # GitHub OIDC
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (linux/arm64, tag = commit SHA)
+        uses: docker/build-push-action@v6
+        with:
+          context: TailwindTraders.Website/Source/Tailwind.Traders.Web
+          platforms: linux/arm64
+          push: true
+          tags: ${{ vars.ECR_REPOSITORY_URL }}:${{ github.sha }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - uses: azure/setup-helm@v4
+
+      - name: Helm upgrade --install (pre-upgrade hook runs --migrate)
+        env:
+          IMAGE_REPO: ${{ vars.ECR_REPOSITORY_URL }}
+          REGION: ${{ vars.AWS_REGION }}
+          CLUSTER: ${{ vars.EKS_CLUSTER_NAME }}
+          CART_TABLE: ${{ vars.CART_TABLE_NAME }}
+          DB_HOST: ${{ vars.AURORA_ENDPOINT }}
+          DB_SECRET: ${{ vars.AURORA_SECRET_ARN }}
+          JWT_SECRET: ${{ vars.JWT_SECRET_NAME }}
+          APP_HOST: ${{ vars.APP_HOST }}
+          ACM_ARN: ${{ vars.ACM_CERTIFICATE_ARN }}
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --name "$CLUSTER" --region "$REGION"
+          args=(
+            --set-string "image.repository=$IMAGE_REPO"
+            --set-string "image.tag=$GITHUB_SHA"
+            --set-string "config.Cart__TableName=${CART_TABLE:-tt-cart}"
+            --set-string "config.Cart__Region=$REGION"
+            --set-string "secrets.externalSecret.dbSecretKey=$DB_SECRET"
+            --set-string "secrets.externalSecret.dbHost=$DB_HOST"
+            --set-string "secrets.externalSecret.jwtSecretKey=$JWT_SECRET"
+            --set-string "ingress.host=${APP_HOST:-}"
+          )
+          if [[ -n "${ACM_ARN:-}" ]]; then
+            args+=(
+              --set-string 'ingress.annotations.alb\.ingress\.kubernetes\.io/certificate-arn'="$ACM_ARN"
+              --set-string 'ingress.annotations.alb\.ingress\.kubernetes\.io/listen-ports=[{"HTTP":80}\,{"HTTPS":443}]'
+              --set-string 'ingress.annotations.alb\.ingress\.kubernetes\.io/ssl-redirect=443'
+            )
+          fi
+          # Namespace is created by Terraform; the deploy role is admin only inside it.
+          helm upgrade --install "$RELEASE" "$CHART" -n "$NAMESPACE" \
+            -f "$CHART/values-eks.yaml" "${args[@]}" --wait --timeout 15m --history-max 10
+          kubectl -n "$NAMESPACE" get pods,ingress
+
+      - name: Smoke test via ALB
+        id: smoke
+        env:
+          APP_HOST: ${{ vars.APP_HOST }}
+          ACM_ARN: ${{ vars.ACM_CERTIFICATE_ARN }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            ALB=$(kubectl -n "$NAMESPACE" get ingress "$RELEASE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' || true)
+            [[ -n "$ALB" ]] && break; sleep 10
+          done
+          [[ -n "$ALB" ]] || { echo "::error::ALB hostname not assigned"; exit 1; }
+          BASE="http://$ALB"
+          HDR=()
+          if [[ -n "${APP_HOST:-}" ]]; then HDR=(-H "Host: $APP_HOST"); fi
+          if [[ -n "${APP_HOST:-}" && -n "${ACM_ARN:-}" ]]; then echo "url=https://$APP_HOST" >> "$GITHUB_OUTPUT"; else echo "url=$BASE" >> "$GITHUB_OUTPUT"; fi
+          # New ALBs take a few minutes to resolve and register targets.
+          for i in $(seq 1 60); do
+            curl -fsS "${HDR[@]}" "$BASE/readyz" -o /dev/null && break; sleep 10
+          done
+          curl -fsS "${HDR[@]}" "$BASE/healthz"; echo
+          curl -fsS "${HDR[@]}" "$BASE/readyz"; echo
+          curl -fsS "${HDR[@]}" "$BASE/api/v1/products?type=home" | jq -e '.products | length > 0'
+          curl -fsS "${HDR[@]}" "$BASE/" | grep -qi '<!doctype html>'
+          echo "### Deployed ${GITHUB_SHA::7} → $BASE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl -n "$NAMESPACE" get all,externalsecret,ingress,events --sort-by=.metadata.creationTimestamp || true
+          kubectl -n "$NAMESPACE" describe pods || true
+          kubectl -n "$NAMESPACE" logs job/${RELEASE}-migrate --tail=100 || true

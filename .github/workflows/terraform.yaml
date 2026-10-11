@@ -1,0 +1,36 @@
+name: terraform
+
+# Static validation only — never calls AWS (no credentials, no plan/apply).
+on:
+  pull_request:
+    paths: ["infra/**", ".github/workflows/terraform.yaml"]
+  push:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/terraform.yaml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "^1.9"
+      - run: terraform fmt -check -recursive -diff
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate -no-color
+      - uses: terraform-linters/setup-tflint@v4
+      - run: tflint --init && tflint -f compact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: checkov
+        run: |
+          pipx install checkov >/dev/null
+          checkov -d . --config-file .checkov.yaml --compact --quiet
