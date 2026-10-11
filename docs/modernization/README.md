@@ -67,7 +67,7 @@ flowchart LR
 | 3a | SQL Server → PostgreSQL 17 with EF Core 10 + Npgsql | ✅ Merged | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
 | 3b | Cart MongoDB → Amazon DynamoDB (PK user, SK product, TTL, server-side prices) | ✅ Merged | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
 | 4 | Kubernetes: new Helm chart, migrate hook Job, `/readyz`, kind (`scripts/kind-up.sh`) + EKS values (ALB, ESO/Secrets Manager, Pod Identity) | ✅ Merged (kind verified; EKS pending AWS account) | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
-| 5 | AWS IaC (Terraform: VPC, EKS Graviton, Aurora PG17 Serverless v2, DynamoDB, ECR, Pod Identity, GitHub OIDC) + `deploy-aws` CI/CD | 🟡 In review (code validated; **not applied**, no AWS account yet) | Phase 5 PR |
+| 5 | AWS IaC (Terraform: VPC, EKS Graviton, Aurora PG17 Serverless v2, DynamoDB, ECR, Pod Identity, GitHub OIDC) + `deploy-aws` CI/CD | 🟡 In review (code validated; **not applied**, no AWS account yet) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⏳ Not started | — |
 | 7 | Frontend upgrade (Vite, React 18/19) — stretch | ⏳ Not started | — |
 | 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |

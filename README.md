@@ -29,7 +29,7 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 | 3a | SQL Server → PostgreSQL 17 with EF Core 10: migrations + `--migrate` step, bundled idempotent seed, case-insensitive search | ✅ Done | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
 | 3b | Cart MongoDB → Amazon DynamoDB: PK user / SK product, TTL, server-side prices, DynamoDB Local | ✅ Done | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
 | 4 | Kubernetes: new Helm chart (hardened, probes, HPA/PDB, migrate hook Job), kind locally, EKS values (ALB, Secrets Manager via ESO, Pod Identity) | ✅ Done | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
-| 5 | AWS infrastructure as Terraform + `deploy-aws` GitHub Actions (OIDC → ECR → EKS); validated, **not yet applied** | 🟡 In review | Phase 5 PR |
+| 5 | AWS infrastructure as Terraform + `deploy-aws` GitHub Actions (OIDC → ECR → EKS); validated, **not yet applied** | 🟡 In review | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⚪ Planned | — |
 | 7–8 | Frontend upgrade; AI features (pgvector + Amazon Bedrock) (optional) | ⚪ Planned | — |
 
