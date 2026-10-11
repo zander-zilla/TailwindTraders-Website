@@ -23,9 +23,9 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 
 | Phase | Scope | Status | PR |
 |---|---|---|---|
-| 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | 🟡 In review | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
-| 1 | .NET 5 → .NET 10, package upgrades, legacy bug fixes (incl. a connection-string leak), Node 22 frontend build | 🟡 In review | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
-| 2 | Hardened containers (chiseled image, Trivy scan), local compose with Postgres + DynamoDB Local | ⚪ Planned | — |
+| 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Done | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
+| 1 | .NET 5 → .NET 10, package upgrades, legacy bug fixes (incl. a connection-string leak), Node 22 frontend build | ✅ Done | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
+| 2 | Hardened containers: chiseled .NET 10 image (956 → 249 MB, 0 critical/high CVEs), Trivy gate + SBOM in CI, local compose full stack | 🟡 In review | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
 | 3a | SQL Server → PostgreSQL with EF Core 10 | ⚪ Planned | — |
 | 3b | Cart MongoDB → Amazon DynamoDB | ⚪ Planned | — |
 | 4 | Amazon EKS + Helm, Secrets Manager, ALB ingress, Pod Identity | ⚪ Planned | — |
@@ -54,7 +54,7 @@ Further reading: [modernization overview](docs/modernization/README.md) · [curr
 
 The app currently runs in **Standalone mode**: it hosts its own product, cart and login APIs, backed by SQL Server + MongoDB.
 
-**Option A: Docker Compose** (web + SQL Server 2022 + MongoDB 7):
+**Option A: Docker Compose** (hardened web image + SQL Server 2022 + MongoDB 7; liveness at `/healthz`):
 ```bash
 docker compose -f TailwindTraders.Website/Source/docker-compose.standalone.yml up --build
 # open http://localhost:2000  (the DB is created and seeded on first start, which needs internet access for the seed CSVs)
@@ -72,9 +72,9 @@ dotnet run -p:BuildingDocker=true
 **Tests** (Docker required; Testcontainers starts SQL Server and MongoDB):
 ```bash
 cd TailwindTraders.Website/Source
-dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true   # 11 tests
+dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true   # 12 tests
 ```
-See the [test README](TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests/README.md) for the pinned baseline values and the legacy bugs they uncovered.
+Container size and vulnerability comparison: [docs/modernization/container-scan.md](docs/modernization/container-scan.md). See the [test README](TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests/README.md) for the pinned baseline values and the legacy bugs they uncovered.
 
 ## Original project
 

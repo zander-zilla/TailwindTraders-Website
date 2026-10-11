@@ -61,9 +61,9 @@ flowchart LR
 ## Roadmap
 | Phase | Scope | Status | PR |
 |---|---|---|---|
-| 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Done — in review | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
-| 1 | .NET 5 → .NET 10, minimal hosting, package upgrades, legacy bug fixes, Node 22 frontend build | ✅ Done — in review | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
-| 2 | Hardened containers (chiseled, Trivy), local compose with Postgres + DynamoDB Local | ⏳ Not started | — |
+| 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Merged | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
+| 1 | .NET 5 → .NET 10, minimal hosting, package upgrades, legacy bug fixes, Node 22 frontend build | ✅ Merged | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
+| 2 | Hardened containers (chiseled, single-RID, Trivy gate, SBOM), local compose full stack | 🟡 In review | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
 | 3a | SQL Server → PostgreSQL with EF Core 10 + Npgsql | ⏳ Not started | — |
 | 3b | Cart MongoDB → Amazon DynamoDB | ⏳ Not started | — |
 | 4 | Amazon EKS + Helm, Secrets Manager, ALB, Pod Identity (optional Terraform/CDK) | ⏳ Not started | — |
@@ -72,7 +72,8 @@ flowchart LR
 | 7 | Frontend upgrade (Vite, React 18/19) — stretch | ⏳ Not started | — |
 | 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |
 
-## Data flow
+## Data flow & containers
+- [Container image before/after scan](container-scan.md): size and vulnerability comparison (Phase 2).
 - [Current-state data flow](data-flow.md): stores, ER diagram, seeding, per-use-case sequence diagrams and Phase 3a/3b migration impact.
 
 ## Architecture Decision Records
@@ -88,3 +89,4 @@ flowchart LR
 | [0008](adr/0008-dynamodb-for-cart.md) | Amazon DynamoDB for the shopping cart | Accepted |
 | [0009](adr/0009-eks-and-helm.md) | Amazon EKS + Helm for hosting | Accepted |
 | [0010](adr/0010-github-oidc-to-aws.md) | GitHub Actions OIDC to AWS IAM | Accepted |
+| [0011](adr/0011-container-hardening.md) | Container hardening: chiseled runtime, single-RID publish, scan gate | Accepted |

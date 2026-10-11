@@ -15,6 +15,7 @@ var startupLogger = startupLoggerFactory.CreateLogger("Startup");
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks(); // liveness only; DB readiness checks come in Phase 6
 builder.Services.Configure<Settings>(builder.Configuration);
 builder.Services.AddStandalone(builder.Configuration, startupLogger);
 
@@ -45,6 +46,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHealthChecks("/healthz"); // liveness probe target (container/Kubernetes)
 app.MapControllers();
 app.MapControllerRoute(name: "default", pattern: "{controller}/{action=Index}/{id?}");
 
