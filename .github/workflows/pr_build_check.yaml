@@ -83,9 +83,13 @@ jobs:
       run: |
         sleep 10
         curl -fsS "http://localhost:18888/api/telemetry/traces?limit=500" > traces.json
-        jq -e '
-          def ids(svc): [.data.resourceSpans[] | select(any(.resource.attributes[]; .value.stringValue == svc)) | .scopeSpans[].spans[].traceId] | unique;
-          (ids("tailwindtraders-spa") as $b | ids("tailwindtraders-web") as $w | [$b[] | select(. as $t | $w | index($t))] | length) > 0' traces.json
+        cat > shared.jq <<'JQ'
+        def ids(svc): [.data.resourceSpans[] | select(any(.resource.attributes[]; .value.stringValue == svc)) | .scopeSpans[].spans[].traceId] | unique;
+        ids("tailwindtraders-spa") as $b | ids("tailwindtraders-web") as $w
+          | {spa: ($b | length), web: ($w | length), shared: (($b - ($b - $w)) | length)}
+        JQ
+        jq -f shared.jq traces.json | tee shared.json
+        jq -e '.shared > 0' shared.json
     - uses: actions/upload-artifact@v4
       if: failure()
       with:

@@ -31,6 +31,7 @@ test("browse, log in, add to cart", async ({ page }) => {
   await page.goto("/shopping-cart");
   await expect(page.locator("body")).toContainText(/\$/);
   expect(errors).toEqual([]);
+  await page.waitForTimeout(2000); // let the browser OpenTelemetry batch (1 s) export before the page closes
 });
 
 // Phase 8: semantic search from the header search box (pgvector + local embeddings in compose/kind).
