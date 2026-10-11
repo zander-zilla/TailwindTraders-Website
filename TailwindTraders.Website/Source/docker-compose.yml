@@ -7,14 +7,6 @@ services:
       context: Tailwind.Traders.Web
       dockerfile: Dockerfile
     environment:
-      - REACT_APP_USE_B2C=false
-      - UseB2C=false
-      - B2CAuth:ClientId=
-      - B2CAuth:Authority=
-      - B2CAuth:Scopes=
-      - Acs__ConnectionString=
-      - Acs__Resource=
-      - Email=
-      - LogicAppUrl=
+      - ASPNETCORE_ENVIRONMENT=Production
     ports:
       - "2000:8080"

@@ -68,8 +68,8 @@ flowchart LR
 | 3b | Cart MongoDB → Amazon DynamoDB (PK user, SK product, TTL, server-side prices) | ✅ Merged | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
 | 4 | Kubernetes: new Helm chart, migrate hook Job, `/readyz`, kind (`scripts/kind-up.sh`) + EKS values (ALB, ESO/Secrets Manager, Pod Identity) | ✅ Merged (kind verified; EKS pending AWS account) | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
 | 5 | AWS IaC (Terraform: VPC, EKS Graviton, Aurora PG17 Serverless v2, DynamoDB, ECR, Pod Identity, GitHub OIDC) + `deploy-aws` CI/CD | ✅ Merged (code validated; **not applied** yet) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
-| 6 | OpenTelemetry (traces/metrics/logs, browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch agent → X-Ray/Application Signals on EKS, HTTP resilience | 🟡 In review | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
-| 7 | Frontend upgrade (Vite, React 18/19) — stretch | ⏳ Not started | — |
+| 6 | OpenTelemetry (traces/metrics/logs, browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch agent → X-Ray/Application Signals on EKS, HTTP resilience | ✅ Merged | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
+| 7 | Frontend: CRA → Vite 7, React 18, react-router 7; ACS/B2C/App Insights/Fluent removed; Vitest + Playwright | 🟡 In review | [#11](https://github.com/zander-zilla/TailwindTraders-Website/pull/11) |
 | 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |
 
 ## Data flow & containers
@@ -95,3 +95,4 @@ flowchart LR
 | [0010](adr/0010-github-oidc-to-aws.md) | GitHub Actions OIDC to AWS IAM | Accepted (code done, not applied) |
 | [0011](adr/0011-container-hardening.md) | Container hardening: chiseled runtime, single-RID publish, scan gate | Accepted |
 | [0012](adr/0012-opentelemetry-observability.md) | OpenTelemetry; Aspire dashboard locally, CloudWatch/X-Ray on AWS | Accepted |
+| [0013](adr/0013-vite-react18-frontend.md) | Frontend: Vite + React 18 + react-router 7; drop Azure-only UI | Accepted |

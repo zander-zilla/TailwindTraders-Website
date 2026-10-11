@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Tailwind.Traders.Web.Controllers
@@ -22,23 +21,10 @@ namespace Tailwind.Traders.Web.Controllers
                 _settings.DebugInformation.SqlServerName = match.Groups["servername"].Value;
             }
             _settings.DebugInformation.CartTableName = config["Cart:TableName"] ?? "tt-cart"; // DynamoDB cart (Phase 3b)
-            if (string.IsNullOrEmpty(_settings.ApplicationInsights.InstrumentationKey))
-            {
-                _settings.ApplicationInsights.InstrumentationKey = config["APPINSIGHTS_INSTRUMENTATIONKEY"];
-            }
         }
 
         [HttpGet()]
-        public ActionResult<Settings> GetSettings()
-        {
-            var settings = _settings;
-            if (Request.Headers.TryGetValue("kubernetes-route-as", out var lpkRouteHeader))
-            {
-                settings = _settings.Clone();
-                settings.UselpkRouteHeader(lpkRouteHeader.FirstOrDefault() ?? string.Empty);
-            }
-            return Ok(settings);
-        }
+        public ActionResult<Settings> GetSettings() => Ok(_settings);
 
      }
 }

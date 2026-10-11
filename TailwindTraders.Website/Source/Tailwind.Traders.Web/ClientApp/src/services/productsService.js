@@ -1,7 +1,6 @@
 import axios from "axios";
 import { ConfigService } from "./"
-const qs = require('qs');
-require('../helpers/errorsHandler');
+import '../helpers/errorsHandler';
 
 
 const ProductService = { 
@@ -24,7 +23,10 @@ const ProductService = {
         const params = {
             'params': type,
             'paramsSerializer': function (params) {
-                return qs.stringify(params, { arrayFormat: 'repeat' })
+                const search = new URLSearchParams();
+                // ?type=a&type=b (ASP.NET Core array binding), skipping null/undefined
+                Object.entries(params).forEach(([k, v]) => [].concat(v ?? []).forEach(x => search.append(k, x)));
+                return search.toString();
             }
         }
 

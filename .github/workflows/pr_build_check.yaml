@@ -22,6 +22,25 @@ jobs:
       working-directory: TailwindTraders.Website/Source
       run: dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true --logger "console;verbosity=normal"
 
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: TailwindTraders.Website/Source/Tailwind.Traders.Web/ClientApp
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: TailwindTraders.Website/Source/Tailwind.Traders.Web/ClientApp/package-lock.json
+    - name: npm ci (no --legacy-peer-deps since Phase 7)
+      run: npm ci --no-audit --no-fund
+    - name: Vitest
+      run: npm test
+    - name: Vite build
+      run: npm run build
+
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -51,6 +70,31 @@ jobs:
         # OpenTelemetry: app -> Aspire dashboard (cart.add + PostgreSQL + DynamoDB spans)
         sleep 10
         curl -fsS "http://localhost:18888/api/telemetry/traces?limit=200" | jq -e '[.data.resourceSpans[].scopeSpans[].scope.name] | (index("TailwindTraders.Web") != null) and (index("Npgsql") != null) and (index("AWSSDK.DynamoDB") != null)'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Playwright browser smoke (browse, login, add to cart)
+      working-directory: TailwindTraders.Website/Source/Tailwind.Traders.Web/ClientApp
+      run: |
+        npm ci --no-audit --no-fund
+        npx playwright install --with-deps chromium
+        BASE_URL=http://localhost:2000 npx playwright test
+    - name: Browser spans share traces with the API (OTel web -> traceparent -> ASP.NET Core)
+      run: |
+        sleep 10
+        curl -fsS "http://localhost:18888/api/telemetry/traces?limit=500" > traces.json
+        cat > shared.jq <<'JQ'
+        def ids(svc): [.data.resourceSpans[] | select(any(.resource.attributes[]; .value.stringValue == svc)) | .scopeSpans[].spans[].traceId] | unique;
+        ids("tailwindtraders-spa") as $b | ids("tailwindtraders-web") as $w
+          | {spa: ($b | length), web: ($w | length), shared: (($b - ($b - $w)) | length)}
+        JQ
+        jq -f shared.jq traces.json | tee shared.json
+        jq -e '.shared > 0' shared.json
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: playwright-report
+        path: TailwindTraders.Website/Source/Tailwind.Traders.Web/ClientApp/playwright-report
     - name: Logs on failure
       if: failure()
       working-directory: TailwindTraders.Website/Source

@@ -1,6 +1,6 @@
 import axios from "axios";
 import { ConfigService } from "./"
-require('../helpers/errorsHandler');
+import '../helpers/errorsHandler';
 
 
 const UserService = { 
