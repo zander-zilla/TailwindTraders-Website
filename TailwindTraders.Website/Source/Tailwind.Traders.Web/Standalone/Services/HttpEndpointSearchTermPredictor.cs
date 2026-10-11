@@ -17,10 +17,13 @@ namespace Tailwind.Traders.Web.Standalone.Services
         private readonly ILogger<HttpEndpointSearchTermPredictor> logger;
         private readonly string imageEndpoint;
         private readonly BlobServiceClient blobServiceClient;
+        private readonly IHttpClientFactory httpClientFactory;
+        public const string HttpClientName = "image-predictor";
 
-        public HttpEndpointSearchTermPredictor(IConfiguration config, ILogger<HttpEndpointSearchTermPredictor> logger)
+        public HttpEndpointSearchTermPredictor(IConfiguration config, ILogger<HttpEndpointSearchTermPredictor> logger, IHttpClientFactory httpClientFactory)
         {
             this.logger = logger;
+            this.httpClientFactory = httpClientFactory;
             this.imageEndpoint = config["ImagePredictorEndpoint"];
             try
             {
@@ -56,7 +59,8 @@ namespace Tailwind.Traders.Web.Standalone.Services
 
             // pass the file to the endpoint
             var fullEndpoint = imageEndpoint + cloudBlockBlob.Uri.AbsoluteUri;
-            HttpClient client = new HttpClient();
+            // Named client: standard resilience pipeline (retry w/ jitter, circuit breaker, timeouts) + HttpClient tracing.
+            var client = httpClientFactory.CreateClient(HttpClientName);
             var response = await client.GetAsync(fullEndpoint);
             response.EnsureSuccessStatusCode();
             var responseBody = await response.Content.ReadAsStreamAsync();

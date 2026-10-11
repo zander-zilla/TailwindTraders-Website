@@ -40,6 +40,8 @@ namespace Tailwind.Traders.Web.Standalone
             var useCustomVisionApi = !string.IsNullOrEmpty(config["ImagePredictorEndpoint"]);
             if (useCustomVisionApi)
             {
+                services.AddHttpClient(HttpEndpointSearchTermPredictor.HttpClientName)
+                    .AddStandardResilienceHandler(); // Microsoft.Extensions.Http.Resilience (Polly v8)
                 services.AddSingleton<IImageSearchTermPredictor, HttpEndpointSearchTermPredictor>();
             }
             else
