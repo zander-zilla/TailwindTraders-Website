@@ -17,7 +17,7 @@ namespace Tailwind.Traders.Web.Tests
     {
         private MsSqlContainer _sql;
         private MongoDbContainer _mongo;
-        public WebApplicationFactory<Startup> Factory { get; private set; }
+        public WebApplicationFactory<Program> Factory { get; private set; }
 
         public async Task InitializeAsync()
         {
@@ -41,7 +41,7 @@ namespace Tailwind.Traders.Web.Tests
             Environment.SetEnvironmentVariable("SqlConnectionString", sqlCs);
             Environment.SetEnvironmentVariable("MongoConnectionString", mongoCs);
 
-            Factory = new WebApplicationFactory<Startup>().WithWebHostBuilder(b =>
+            Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
             {
                 // Not "Development": avoids launching the React dev server.
                 b.UseEnvironment("Testing");

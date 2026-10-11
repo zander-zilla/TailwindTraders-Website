@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Tailwind.Traders.Web
 {
@@ -34,8 +34,6 @@ namespace Tailwind.Traders.Web
         public string ProductImagesUrl { get; set; }
 
         public void UselpkRouteHeader(string lpkRouteHeader) => LPKRouteHeader = lpkRouteHeader;
-
-        public PersonalizerSettings Personalizer { get; set; }
 
         public AcsSettings Acs { get; set; } = new AcsSettings();
 
@@ -96,11 +94,6 @@ namespace Tailwind.Traders.Web
         public bool ShowDebug { get; set; }
     }
 
-    public class PersonalizerSettings
-    {
-        public string ApiKey { get; set; }
-        public string Endpoint { get; set; }
-    }
 
     public class AcsSettings
     {

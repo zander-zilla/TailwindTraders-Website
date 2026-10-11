@@ -2,18 +2,30 @@ name: Build check on PR
 
 on:
   pull_request:
-    branches: [ main ]
     paths:
       - 'TailwindTraders.Website/**'
+      - '.github/workflows/pr_build_check.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
-    - name: 'Checkout Github Action'
-      uses: actions/checkout@master
+    - uses: actions/checkout@v4
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    - name: Baseline tests (Testcontainers SQL Server + MongoDB)
+      working-directory: TailwindTraders.Website/Source
+      run: dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true --logger "console;verbosity=normal"
 
-    - name: Docker build
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Docker build (.NET 10 + Node 22)
       working-directory: TailwindTraders.Website/Source/Tailwind.Traders.Web
-      run: |
-        docker build . --build-arg sdkTag=5.0 --build-arg runtimeTag=5.0 -t tailwindtraders/web:gh-${{ github.sha }} -t latest
+      run: docker build . -t tailwindtraders/web:gh-${{ github.sha }}

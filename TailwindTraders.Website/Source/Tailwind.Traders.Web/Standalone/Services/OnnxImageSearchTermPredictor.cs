@@ -5,10 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.Primitives;
+using SkiaSharp;
 
 namespace Tailwind.Traders.Web.Standalone.Services
 {
@@ -37,22 +34,17 @@ namespace Tailwind.Traders.Web.Standalone.Services
         private DenseTensor<float> ConvertImageToTensor(Stream imageStream)
         {
             var data = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
-            using (var image = Image.Load(imageStream))
+            // SkiaSharp (MIT) replaces ImageSharp: ImageSharp 3.x has open CVEs and 4.x requires a commercial license key.
+            using var original = SKBitmap.Decode(imageStream);
+            using var resized = original.Resize(new SKImageInfo(224, 224, SKColorType.Rgba8888), new SKSamplingOptions(SKFilterMode.Linear));
+            for (var y = 0; y < resized.Height; y++)
             {
-                image.Mutate(ctx => ctx.Resize(new ResizeOptions
+                for (var x = 0; x < resized.Width; x++)
                 {
-                    Size = new Size(224, 224),
-                    Mode = ResizeMode.Stretch
-                }));
-                for (var x = 0; x < image.Width; x++)
-                {
-                    for (var y = 0; y < image.Height; y++)
-                    {
-                        var color = image.GetPixelRowSpan(y)[x];
-                        data[0, 0, x, y] = color.B;
-                        data[0, 1, x, y] = color.G;
-                        data[0, 2, x, y] = color.R;
-                    }
+                    var color = resized.GetPixel(x, y);
+                    data[0, 0, x, y] = color.Blue;
+                    data[0, 1, x, y] = color.Green;
+                    data[0, 2, x, y] = color.Red;
                 }
             }
             return data;

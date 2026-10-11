@@ -1,6 +1,6 @@
 import axios from "axios";
 
-require("dotenv").config();
+// dotenv removed: CRA 5 (webpack 5) has no Node "fs" polyfill; REACT_APP_* vars are injected at build time anyway.
 const settingsUrl = "/api/settings";
 
 const APIUrl = process.env.REACT_APP_DEV_API_URL;

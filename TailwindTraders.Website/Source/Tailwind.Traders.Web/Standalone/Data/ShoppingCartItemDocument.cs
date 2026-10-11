@@ -1,7 +1,7 @@
 
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Tailwind.Traders.Web.Standalone.Data
 {
@@ -30,7 +30,7 @@ namespace Tailwind.Traders.Web.Standalone.Data
         public int Qty { get; set; }
 
         [BsonElement("id")]
-        [JsonProperty("_cdbid")]
+        [JsonPropertyName("_cdbid")]
         public string Guid { get; set; }
     }
 }
