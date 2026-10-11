@@ -1,0 +1,77 @@
+name: kubernetes
+
+on:
+  pull_request:
+    paths: ["deploy/**", "scripts/kind-up.sh", "TailwindTraders.Website/Source/**", ".github/workflows/kubernetes.yaml"]
+  push:
+    branches: [main]
+    paths: ["deploy/**", "scripts/kind-up.sh", ".github/workflows/kubernetes.yaml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: helm lint (kind + eks values)
+        run: |
+          C=deploy/helm/tailwindtraders
+          helm lint --strict $C -f $C/values-kind.yaml
+          helm lint --strict $C -f $C/values-eks.yaml
+      - name: helm template + kubeconform
+        run: |
+          C=deploy/helm/tailwindtraders
+          helm template tt $C -f $C/values-kind.yaml > kind.yaml
+          helm template tt $C -f $C/values-eks.yaml > eks.yaml
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary -kubernetes-version 1.33.0 \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            kind.yaml eks.yaml deploy/kind/dependencies.yaml
+
+  kind:
+    runs-on: ubuntu-latest
+    needs: chart
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: tailwindtraders
+          config: deploy/kind/kind-config.yaml
+      - name: scripts/kind-up.sh (build, load, deps, helm install with migrate hook)
+        run: scripts/kind-up.sh
+      - name: Verify app through the NodePort (localhost:2000)
+        run: |
+          set -e
+          curl -fsS http://localhost:2000/healthz
+          curl -fsS http://localhost:2000/readyz
+          curl -fsS "http://localhost:2000/api/v1/products?type=home" | jq -e '.products | length == 8'
+          curl -fsS http://localhost:2000/api/v1/products/1 | jq -e '.name == "Microwave 0.9 Cu. Ft. 900 W"'
+          curl -fsS http://localhost:2000/ | grep -qi '<!doctype html>'
+          TOKEN=$(curl -fsS -H 'Content-Type: application/json' -d '{"username":"kind@contoso.com","password":"x","grant_type":"password"}' http://localhost:2000/api/v1/login | jq -r .access_token.token)
+          curl -fsS -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"detailProduct":{"id":1},"qty":2}' http://localhost:2000/api/v1/shoppingcart
+          curl -fsS -H "Authorization: Bearer $TOKEN" http://localhost:2000/api/v1/shoppingcart | jq -e '.[0].qty == 2 and .[0].price == 100'
+      - name: Verify hardening + migrate hook
+        run: |
+          set -e
+          NS=tailwindtraders
+          kubectl -n $NS get pods -o wide
+          kubectl -n $NS get deploy tailwindtraders -o json | jq -e '.spec.template.spec.securityContext.runAsNonRoot and .spec.template.spec.securityContext.seccompProfile.type == "RuntimeDefault" and (.spec.template.spec.containers[0].securityContext | .readOnlyRootFilesystem and (.allowPrivilegeEscalation|not) and .capabilities.drop == ["ALL"])'
+          kubectl -n $NS logs job/tailwindtraders-migrate | grep -E "Seeding|DynamoDB table"
+      - name: helm upgrade (pre-upgrade migrate hook is idempotent)
+        run: |
+          helm upgrade tailwindtraders deploy/helm/tailwindtraders -n tailwindtraders -f deploy/helm/tailwindtraders/values-kind.yaml --wait --timeout 5m
+          kubectl -n tailwindtraders logs job/tailwindtraders-migrate | grep "Seeding not required"
+          curl -fsS http://localhost:2000/readyz
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl -n tailwindtraders get all,cm,secret,events --sort-by=.metadata.creationTimestamp || true
+          kubectl -n tailwindtraders describe pods || true
+          kubectl -n tailwindtraders logs -l app.kubernetes.io/name=tailwindtraders --all-containers --tail=200 || true
