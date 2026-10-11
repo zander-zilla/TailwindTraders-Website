@@ -40,8 +40,10 @@ secrets:
       kind: ClusterSecretStore
       name: aws-secrets-manager
     refreshInterval: 1h
-    # Secrets Manager secret holding the Aurora credentials (RDS-managed secret JSON: username, password, host, port).
+    # Aurora RDS-managed master secret (JSON with username + password only), plus the endpoint from Terraform.
     dbSecretKey: ""
+    dbHost: ""
+    dbPort: "5432"
     database: tailwind
     # Optional Secrets Manager secret (plain string) for the JWT key.
     jwtSecretKey: ""
