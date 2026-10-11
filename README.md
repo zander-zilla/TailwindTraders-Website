@@ -193,3 +193,16 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## Modernization demo (fork) — Phase 0: baseline
+
+This fork is being modernized step by step (see [PLAN.md](PLAN.md)). Phase 0 adds a safety net before any code changes:
+
+- **Baseline tests:** `TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests` — xUnit + `WebApplicationFactory` + Testcontainers (SQL Server 2022, MongoDB 7) that pin the Standalone-mode API behaviour. See its [README](TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests/README.md).
+  ```bash
+  cd TailwindTraders.Website/Source
+  dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true
+  ```
+  Requires Docker, the .NET 10 SDK plus the .NET 5 runtime (with `libssl1.1` on modern Linux), and internet access for seed CSVs.
+- **Run the legacy app locally (Standalone mode):** `docker compose -f TailwindTraders.Website/Source/docker-compose.standalone.yml up --build`, then browse http://localhost:2000.
+  Or without Docker for the web app: start SQL Server + Mongo, set `SqlConnectionString` / `MongoConnectionString`, and `dotnet run -p:BuildingDocker=true` in `Source/Tailwind.Traders.Web` (APIs only; the legacy React build needs Node 10 + node-sass 4).
