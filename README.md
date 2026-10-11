@@ -30,8 +30,9 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 | 3b | Cart MongoDB → Amazon DynamoDB: PK user / SK product, TTL, server-side prices, DynamoDB Local | ✅ Done | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
 | 4 | Kubernetes: new Helm chart (hardened, probes, HPA/PDB, migrate hook Job), kind locally, EKS values (ALB, Secrets Manager via ESO, Pod Identity) | ✅ Done | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
 | 5 | AWS infrastructure as Terraform + `deploy-aws` GitHub Actions (OIDC → ECR → EKS); validated, **not yet applied** | ✅ Done (not yet applied) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
-| 6 | Observability: OpenTelemetry end to end (browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch/X-Ray on EKS, HTTP resilience | 🟡 In review | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
-| 7–8 | Frontend upgrade; AI features (pgvector + Amazon Bedrock) (optional) | ⚪ Planned | — |
+| 6 | Observability: OpenTelemetry end to end (browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch/X-Ray on EKS, HTTP resilience | ✅ Done | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
+| 7 | Frontend: Vite 7, React 18, react-router 7; Azure-only UI (ACS video/chat, B2C, App Insights) removed; Vitest + Playwright | 🟡 In review | Phase 7 PR |
+| 8 | AI: semantic search (pgvector + Amazon Bedrock) | ⚪ Planned | — |
 
 Details, estimates and risks: [PLAN.md](PLAN.md).
 
@@ -63,7 +64,7 @@ docker compose -f TailwindTraders.Website/Source/docker-compose.standalone.yml u
 **Option B: .NET 10 SDK + Node 22** (with PostgreSQL and DynamoDB Local running somewhere, e.g. `docker run -p 8000:8000 amazon/dynamodb-local`):
 ```bash
 cd TailwindTraders.Website/Source/Tailwind.Traders.Web
-(cd ClientApp && npm ci --legacy-peer-deps && npm run build)
+(cd ClientApp && npm ci && npm run build)   # Vite; `npm run dev` = hot-reload on :3000 proxying /api to :2000; `npm test` = Vitest; `npm run e2e` = Playwright
 export ConnectionStrings__Products='Host=localhost;Database=tailwind;Username=tailwind;Password=<pwd>'
 export Cart__ServiceUrl='http://localhost:8000' ApiUrl=/api/v1 ApiUrlShoppingCart=/api/v1   # omit ServiceUrl in AWS (credential chain / Pod Identity)
 dotnet run -p:BuildingDocker=true -- --migrate   # apply migrations + seed, then exit
