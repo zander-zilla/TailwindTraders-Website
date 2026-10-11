@@ -24,7 +24,7 @@ flowchart LR
 | `deployment.yaml` | UID 1654 (non-root), `readOnlyRootFilesystem`, `drop: [ALL]`, no privilege escalation, seccomp `RuntimeDefault`, `/tmp` emptyDir, port 8080. Probes: startup and liveness on `/healthz` (process only); **readiness on `/readyz`** (PostgreSQL reachable and seeded, DynamoDB table ACTIVE). Requests plus a memory limit, rolling update `maxUnavailable: 0`, zone topology spread, and config/secret checksums trigger a rollout when either changes. |
 | `migrate-job.yaml` | **Helm `pre-install,pre-upgrade` hook**: same image, `--migrate` (EF Core migrations, idempotent CSV seed, DynamoDB table if `Cart__CreateTable=true`). Install/upgrade fails if it fails. |
 | `configmap.yaml` | Non-secret env (`config:` values). It's a hook resource (weight -10), so the migrate Job can use it. |
-| `secret.yaml` / `externalsecret.yaml` | `secrets.mode`: `secret` (chart-created, local only), `externalSecret` (External Secrets Operator ← AWS Secrets Manager; builds `ConnectionStrings__Products` from the Aurora-managed secret JSON), or `existing`. |
+| `secret.yaml` / `externalsecret.yaml` | `secrets.mode`: `secret` (chart-created, local only), `externalSecret` (External Secrets Operator ← AWS Secrets Manager; builds `ConnectionStrings__Products` from the Aurora-managed secret (username/password) plus `dbHost`/`dbPort` from Terraform outputs), or `existing`. |
 | `serviceaccount.yaml` | Dedicated SA. EKS Pod Identity association, or set the IRSA `eks.amazonaws.com/role-arn` annotation. |
 | `service.yaml`, `ingress.yaml` | `ingress.className` configurable (`alb` on EKS). Ingress disabled on kind (NodePort instead). |
 | `hpa.yaml`, `pdb.yaml` | autoscaling/v2 on CPU. PDB `maxUnavailable: 1`. |
@@ -46,6 +46,8 @@ scripts/kind-up.sh --down   # delete the cluster
 - The compose stack (`docker compose … up`) also uses port 2000. Stop it first (`docker compose -f docker-compose.standalone.yml down`), or change `hostPort`.
 
 ## What EKS needs (Phase 5 IaC)
+All of this is now in [`infra/terraform`](../../infra/terraform). See [aws-setup.md](aws-setup.md) for the bootstrap and the output → values mapping.
+
 `values-eks.yaml` is ready but untested until this infrastructure exists:
 1. **EKS** cluster (1.30+, Auto Mode optional) with the **AWS Load Balancer Controller**, the **EKS Pod Identity Agent** add-on, **External Secrets Operator**, a `ClusterSecretStore` named `aws-secrets-manager`, and **metrics-server** (for the HPA).
 2. **ECR** repository `tailwindtraders/web`. Images are pushed by GitHub Actions through OIDC (ADR 0010), with immutable tags.

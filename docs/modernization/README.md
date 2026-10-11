@@ -66,8 +66,8 @@ flowchart LR
 | 2 | Hardened containers (chiseled, single-RID, Trivy gate, SBOM), local compose full stack | ✅ Merged | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
 | 3a | SQL Server → PostgreSQL 17 with EF Core 10 + Npgsql | ✅ Merged | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
 | 3b | Cart MongoDB → Amazon DynamoDB (PK user, SK product, TTL, server-side prices) | ✅ Merged | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
-| 4 | Kubernetes: new Helm chart, migrate hook Job, `/readyz`, kind (`scripts/kind-up.sh`) + EKS values (ALB, ESO/Secrets Manager, Pod Identity) | 🟡 In review (kind verified in CI; EKS needs Phase 5 infra) | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
-| 5 | CI/CD: GitHub Actions → ECR/EKS via OIDC | ⏳ Not started | — |
+| 4 | Kubernetes: new Helm chart, migrate hook Job, `/readyz`, kind (`scripts/kind-up.sh`) + EKS values (ALB, ESO/Secrets Manager, Pod Identity) | ✅ Merged (kind verified; EKS pending AWS account) | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
+| 5 | AWS IaC (Terraform: VPC, EKS Graviton, Aurora PG17 Serverless v2, DynamoDB, ECR, Pod Identity, GitHub OIDC) + `deploy-aws` CI/CD | 🟡 In review (code validated; **not applied**, no AWS account yet) | Phase 5 PR |
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⏳ Not started | — |
 | 7 | Frontend upgrade (Vite, React 18/19) — stretch | ⏳ Not started | — |
 | 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |
@@ -75,6 +75,7 @@ flowchart LR
 ## Data flow & containers
 - [SQL Server → PostgreSQL data migration with AWS DMS](sqlserver-to-postgres-dms.md) (docs only) and the generated [idempotent schema script](catalog-schema.postgres.sql).
 - [Container image before/after scan](container-scan.md): size and vulnerability comparison (Phase 2).
+- [AWS setup](aws-setup.md): Terraform, bootstrap commands, GitHub variables, cost estimate, teardown.
 - [Kubernetes: kind and EKS](kubernetes.md): chart, values, how to run on kind, and what EKS needs.
 - [Current-state data flow](data-flow.md): stores, ER diagram, seeding, per-use-case sequence diagrams and Phase 3a/3b migration impact.
 
@@ -90,5 +91,5 @@ flowchart LR
 | [0007](adr/0007-ef-core-npgsql-over-dapper.md) | EF Core 10 + Npgsql instead of Dapper | Accepted |
 | [0008](adr/0008-dynamodb-for-cart.md) | Amazon DynamoDB for the shopping cart | Accepted (implemented) |
 | [0009](adr/0009-eks-and-helm.md) | Amazon EKS + Helm for hosting | Accepted (kind implemented, EKS pending) |
-| [0010](adr/0010-github-oidc-to-aws.md) | GitHub Actions OIDC to AWS IAM | Accepted |
+| [0010](adr/0010-github-oidc-to-aws.md) | GitHub Actions OIDC to AWS IAM | Accepted (code done, not applied) |
 | [0011](adr/0011-container-hardening.md) | Container hardening: chiseled runtime, single-RID publish, scan gate | Accepted |
