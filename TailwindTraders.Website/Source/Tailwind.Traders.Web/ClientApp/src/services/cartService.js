@@ -5,11 +5,6 @@ require('../helpers/errorsHandler');
 const CartService = {
     async getShoppingCart(token) {
         await ConfigService.loadSettings();
-        if (ConfigService._byPassShoppingCartApi) {
-            const items = await ConfigService._shoppingCartDao.find(token);
-            return items;
-        }
-
         try {
             const response = await axios.get(`${ConfigService._apiUrlShoppingCart}/shoppingcart`, ConfigService.HeadersConfig(token));
             return response.data;
@@ -44,11 +39,6 @@ const CartService = {
         };
 
         const dataToPost = { detailProduct: productInfo, qty: 1 };
-
-        if (ConfigService._byPassShoppingCartApi) {
-            await ConfigService._shoppingCartDao.addItem(dataToPost);
-            return { message: "Product added on shopping cart" };
-        }
 
         const addProduct = axios.post(`${ConfigService._apiUrlShoppingCart}/shoppingcart`, dataToPost, ConfigService.HeadersConfig(token))
             .then((response) => {

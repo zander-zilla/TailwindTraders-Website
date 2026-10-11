@@ -9,7 +9,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
-using MongoDB.Driver;
+using Amazon;
+using Amazon.DynamoDBv2;
+using Amazon.Runtime;
+using Tailwind.Traders.Web.Standalone.Cart;
 using Tailwind.Traders.Web.Standalone.Data;
 using Tailwind.Traders.Web.Standalone.Services;
 
@@ -26,12 +29,11 @@ namespace Tailwind.Traders.Web.Standalone
 
             services.AddDbContextPool<CatalogDbContext>(o => CatalogDbContext.Configure(o, GetCatalogConnectionString(config)));
 
-            // appsettings.json ships MongoConnectionString = "" so `??` never applied (legacy bug); treat empty as unset.
-            var mongoConnectionString = string.IsNullOrEmpty(config["MongoConnectionString"]) ? "mongodb://localhost:27017" : config["MongoConnectionString"];
-            var mongoClientSettings = MongoClientSettings.FromConnectionString(mongoConnectionString);
-            // App Insights dependency tracking for Mongo removed (Azure-specific); OpenTelemetry arrives in Phase 6.
-            var mongoClient = new MongoClient(mongoClientSettings);
-            services.AddSingleton(mongoClient);
+            // Cart: Amazon DynamoDB (Phase 3b, ADR 0008). Credentials: AWS SDK default chain
+            // (env vars, profile, EKS Pod Identity / IRSA). With an endpoint override (DynamoDB Local) dummy keys are used.
+            services.Configure<CartOptions>(config.GetSection("Cart"));
+            services.AddSingleton<IAmazonDynamoDB>(_ => CreateDynamoDbClient(config.GetSection("Cart").Get<CartOptions>() ?? new CartOptions()));
+            services.AddSingleton<ICartRepository, DynamoDbCartRepository>();
 
             services.AddTransient<IProductService, ProductService>();
             
@@ -103,6 +105,25 @@ namespace Tailwind.Traders.Web.Standalone
             using var scope = services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
             await new StandaloneDatabaseInitializer(db, logger).MigrateAndSeedAsync();
+            await new CartTableInitializer(
+                scope.ServiceProvider.GetRequiredService<IAmazonDynamoDB>(),
+                scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<CartOptions>>(),
+                logger).EnsureTableAsync();
+        }
+
+        public static IAmazonDynamoDB CreateDynamoDbClient(CartOptions o)
+        {
+            var cfg = new AmazonDynamoDBConfig();
+            var region = string.IsNullOrEmpty(o.Region) ? Environment.GetEnvironmentVariable("AWS_REGION") : o.Region;
+            if (!string.IsNullOrEmpty(o.ServiceUrl))
+            {
+                cfg.ServiceURL = o.ServiceUrl;                                   // DynamoDB Local / LocalStack
+                cfg.AuthenticationRegion = string.IsNullOrEmpty(region) ? "us-east-1" : region;
+                var hasKeys = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID"));
+                return hasKeys ? new AmazonDynamoDBClient(cfg) : new AmazonDynamoDBClient(new BasicAWSCredentials("local", "local"), cfg);
+            }
+            cfg.RegionEndpoint = RegionEndpoint.GetBySystemName(string.IsNullOrEmpty(region) ? "us-east-1" : region);
+            return new AmazonDynamoDBClient(cfg);                                // default credential chain
         }
     }
 }

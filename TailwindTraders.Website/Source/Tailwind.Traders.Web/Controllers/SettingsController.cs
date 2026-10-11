@@ -21,11 +21,7 @@ namespace Tailwind.Traders.Web.Controllers
                 var match = Regex.Match(catalogConnection, @"(?i)(Host|Server)=(?<servername>[^,;]+)");
                 _settings.DebugInformation.SqlServerName = match.Groups["servername"].Value;
             }
-            if (!string.IsNullOrEmpty(_settings.MongoConnectionString))
-            {
-                var match = Regex.Match(_settings.MongoConnectionString, @"//([^:]+:[^:]+@)?(?<servername>[^:/]+)");
-                _settings.DebugInformation.MongoServerName = match.Groups["servername"].Value;
-            }
+            _settings.DebugInformation.CartTableName = config["Cart:TableName"] ?? "tt-cart"; // DynamoDB cart (Phase 3b)
             if (string.IsNullOrEmpty(_settings.ApplicationInsights.InstrumentationKey))
             {
                 _settings.ApplicationInsights.InstrumentationKey = config["APPINSIGHTS_INSTRUMENTATIONKEY"];

@@ -1,9 +1,8 @@
-using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Driver;
-using Tailwind.Traders.Web.Standalone.Data;
+using Tailwind.Traders.Web.Standalone.Cart;
 using Tailwind.Traders.Web.Standalone.Models;
 
 namespace Tailwind.Traders.Web.Standalone.Controllers
@@ -11,96 +10,64 @@ namespace Tailwind.Traders.Web.Standalone.Controllers
     [ApiController]
     [Route("api/v1/[controller]")]
     [Authorize]
-    public class ShoppingCartController: Controller
+    public class ShoppingCartController : Controller
     {
-        private const string databaseName = "tailwind";
-        private const string collectionName = "cart";
-        private readonly MongoClient mongoClient;
+        private readonly ICartRepository cart;
+        private readonly IProductService products;
 
-        public ShoppingCartController(MongoClient mongoClient)
+        public ShoppingCartController(ICartRepository cart, IProductService products)
         {
-            this.mongoClient = mongoClient;
+            this.cart = cart;
+            this.products = products;
         }
+
+        private string UserId => User.Identity.Name;
 
         [HttpGet]
-        public async Task<IActionResult> GetAsync()
-        {
-            var userId = User.Identity.Name;
-            var database = mongoClient.GetDatabase(databaseName);
-            var collection = database.GetCollection<ShoppingCartItemDocument>(collectionName);
-            var builder = Builders<ShoppingCartItemDocument>.Filter;
-            var results = await collection.FindAsync(
-                builder.Eq(i => i.Email, userId));
-
-            return Ok(await results.ToListAsync());
-        }
+        public async Task<IActionResult> GetAsync() => Ok(await cart.GetAsync(UserId));
 
         [HttpPost]
-        public async Task<IActionResult> PostAsync([FromBody]ShoppingCartItemRequest itemRequest)
+        public async Task<IActionResult> PostAsync([FromBody] ShoppingCartItemRequest itemRequest)
         {
-            var userId = User.Identity.Name;
-            var database = mongoClient.GetDatabase(databaseName);
-            var collection = database.GetCollection<ShoppingCartItemDocument>(collectionName);
-            var filter = Builders<ShoppingCartItemDocument>.Filter;
+            if (itemRequest?.DetailProduct == null) return BadRequest();
+            var qty = itemRequest.Qty < 1 ? 1 : itemRequest.Qty;
 
-            var guid = Guid.NewGuid().ToString();
-            await collection.InsertOneAsync(new ShoppingCartItemDocument
-            {
-                Id = itemRequest.DetailProduct.Id,
-                Email = userId,
-                Name = itemRequest.DetailProduct.Name,
-                ImageUrl = itemRequest.DetailProduct.ImageUrl,
-                Price = itemRequest.DetailProduct.Price,
-                Qty = itemRequest.Qty,
-                Guid = guid
-            });
+            // Name, price and image come from the catalog (PostgreSQL). Client-sent values are ignored.
+            var product = await products.GetProduct(itemRequest.DetailProduct.Id);
+            if (product == null) return NotFound(new { message = "Unknown product" });
+
+            var line = await cart.AddAsync(UserId, product.Id, product.Name, product.Price, product.ImageUrl, qty);
 
             return Created("/api/v1/shoppingcart", new
             {
                 message = "Product added to shopping cart",
-                id = guid
+                id = line.LineId
             });
         }
 
         [HttpPost("product")]
-        public async Task<IActionResult> UpdateProductAsync([FromBody]ShoppingCartItemUpdateRequest updateRequest)
+        public async Task<IActionResult> UpdateProductAsync([FromBody] ShoppingCartItemUpdateRequest updateRequest)
         {
-            var userId = User.Identity.Name;
-            var database = mongoClient.GetDatabase(databaseName);
-            var collection = database.GetCollection<ShoppingCartItemDocument>(collectionName);
-            var filter = Builders<ShoppingCartItemDocument>.Filter;
-            var update = Builders<ShoppingCartItemDocument>.Update;
-            
-            var updatedDocument = await collection.FindOneAndUpdateAsync(
-                filter.Eq(i => i.Email, userId) & filter.Eq(i => i.Guid, updateRequest.Id),
-                update.Set(i => i.Qty, updateRequest.Qty)
-            );
+            if (updateRequest == null || updateRequest.Qty < 1) return BadRequest(new { message = "qty must be >= 1; use DELETE to remove" });
+            if (!TryParseLine(updateRequest.Id, out var productId) || !await cart.SetQtyAsync(UserId, productId, updateRequest.Qty))
+                return NotFound();
 
-            // this is wrong but returning 201 to match existing API
-            return Created("/api/v1/shoppingcart", new
-            {
-                Message = "Product qty updated"
-            });
+            // 201 kept to match the existing API contract.
+            return Created("/api/v1/shoppingcart", new { Message = "Product qty updated" });
         }
 
         [HttpDelete("product")]
-        public async Task<IActionResult> DeleteProductAsync([FromBody]ShoppingCartItemDeleteRequest deleteRequest)
+        public async Task<IActionResult> DeleteProductAsync([FromBody] ShoppingCartItemDeleteRequest deleteRequest)
         {
-            var userId = User.Identity.Name;
-            var database = mongoClient.GetDatabase(databaseName);
-            var collection = database.GetCollection<ShoppingCartItemDocument>(collectionName);
-            var filter = Builders<ShoppingCartItemDocument>.Filter;
-
-            _ = await collection.DeleteOneAsync(
-                filter.Eq(i => i.Email, userId) & filter.Eq(i => i.Guid, deleteRequest.Id));
-            
+            if (!TryParseLine(deleteRequest?.Id, out var productId) || !await cart.DeleteAsync(UserId, productId))
+                return NotFound();
             return Ok();
         }
 
         [HttpGet("relatedproducts")]
-        public IActionResult GetRelatedAsync()
-        {
-            return Ok(new object[]{});
-        }
+        public IActionResult GetRelatedAsync() => Ok(new object[] { });
+
+        private static bool TryParseLine(string id, out int productId) =>
+            int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out productId);
     }
 }
