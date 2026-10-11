@@ -17,7 +17,7 @@
 - Data layer: **EF Core 10 + Npgsql (Option B) — CHOSEN**; keep-Dapper (Option A) NOT chosen. See §2a.
 - Shopping cart: **MongoDB/Cosmos → Amazon DynamoDB** (AWSSDK.DynamoDBv2, PK = user/session id, TTL for abandoned carts, on-demand capacity, DynamoDB Local/LocalStack locally, IAM via EKS Pod Identity). jsonb/DocumentDB alternatives dropped.
 
-**Next step:** review/merge Phase 2 PR (agent does not merge); Phases 0–1 merged to main (PRs #1–#4). Then Phase 3a (PostgreSQL + EF Core 10) and 3b (DynamoDB cart). Repo: fork `zander-zilla/TailwindTraders-Website` (PRs target the fork only; never upstream).
+**Next step:** review/merge Phase 2 PR #5 (agent does not merge); Phases 0–1 merged to main (PRs #1–#4). Then Phase 3a (PostgreSQL + EF Core 10) and 3b (DynamoDB cart). Repo: fork `zander-zilla/TailwindTraders-Website` (PRs target the fork only; never upstream).
 Analysis clone (read-only): `/workspace/modernization/TailwindTraders-Website` (shallow, nothing pushed).
 
 ---

@@ -25,7 +25,7 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 |---|---|---|---|
 | 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Done | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
 | 1 | .NET 5 → .NET 10, package upgrades, legacy bug fixes (incl. a connection-string leak), Node 22 frontend build | ✅ Done | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
-| 2 | Hardened containers: chiseled .NET 10 image (956 → 249 MB, 0 critical/high CVEs), Trivy gate + SBOM in CI, local compose full stack | 🟡 In review | Phase 2 PR |
+| 2 | Hardened containers: chiseled .NET 10 image (956 → 249 MB, 0 critical/high CVEs), Trivy gate + SBOM in CI, local compose full stack | 🟡 In review | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
 | 3a | SQL Server → PostgreSQL with EF Core 10 | ⚪ Planned | — |
 | 3b | Cart MongoDB → Amazon DynamoDB | ⚪ Planned | — |
 | 4 | Amazon EKS + Helm, Secrets Manager, ALB ingress, Pod Identity | ⚪ Planned | — |

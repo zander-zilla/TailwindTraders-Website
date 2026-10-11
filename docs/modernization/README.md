@@ -63,7 +63,7 @@ flowchart LR
 |---|---|---|---|
 | 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Merged | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
 | 1 | .NET 5 → .NET 10, minimal hosting, package upgrades, legacy bug fixes, Node 22 frontend build | ✅ Merged | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
-| 2 | Hardened containers (chiseled, single-RID, Trivy gate, SBOM), local compose full stack | 🟡 In review | Phase 2 PR |
+| 2 | Hardened containers (chiseled, single-RID, Trivy gate, SBOM), local compose full stack | 🟡 In review | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
 | 3a | SQL Server → PostgreSQL with EF Core 10 + Npgsql | ⏳ Not started | — |
 | 3b | Cart MongoDB → Amazon DynamoDB | ⏳ Not started | — |
 | 4 | Amazon EKS + Helm, Secrets Manager, ALB, Pod Identity (optional Terraform/CDK) | ⏳ Not started | — |
