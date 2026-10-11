@@ -22,4 +22,4 @@ services:
       MongoConnectionString: "mongodb://mongo:27017"
       ApiUrl: "/api/v1"
       ApiUrlShoppingCart: "/api/v1"
-    ports: ["2000:80"]
+    ports: ["2000:8080"]

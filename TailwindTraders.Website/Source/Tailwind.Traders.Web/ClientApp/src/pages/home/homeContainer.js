@@ -58,25 +58,9 @@ class HomeContainer extends Component {
     }
 
     async getRank() {
-        var categories = { categories: this.state.defaultProducts.map((product) => { return product.title }) };
-        const response = await fetch("/api/personalizer/rank", {
-            method: "POST",
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(categories)
-        })
-        if (!response.ok || response.statusText === "No Content") {
-            if (response.error) {
-                console.error(response.error);
-            }
-            this.setState({ recommendedProducts: this.state.defaultProducts });
-            return;
-        } else {
-            const data = await response.json();
-            console.log(`Rank request sent. EventId: ${data.eventId}`);
-            this.setState({ recommendedProducts: this.getRerankedProducts(data) });
-        }
+        // Azure Personalizer was retired; the /api/personalizer endpoints were removed in the .NET 10 upgrade.
+        // Keep the default ordering (AI-driven recommendations return in Phase 8).
+        this.setState({ recommendedProducts: this.state.defaultProducts });
     }
 
     getRerankedProducts(data) {

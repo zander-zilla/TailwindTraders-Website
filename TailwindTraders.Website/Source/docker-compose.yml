@@ -17,4 +17,4 @@ services:
       - Email=
       - LogicAppUrl=
     ports:
-      - "2000:80"
+      - "2000:8080"

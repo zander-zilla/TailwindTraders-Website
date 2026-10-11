@@ -34,6 +34,10 @@ namespace Tailwind.Traders.Web.Tests
             var json = await Json(await _fx.Factory.CreateClient().GetAsync("/api/settings"));
             Assert.Equal(JsonValueKind.Object, json.ValueKind);
             Assert.True(json.TryGetProperty("apiUrl", out _), json.ToString());
+            // Phase 1 fix (legacy bug 3): Newtonsoft [JsonIgnore] was ignored by System.Text.Json, so the
+            // .NET 5 app leaked SqlConnectionString / MongoConnectionString (with passwords) to the browser.
+            Assert.False(json.TryGetProperty("sqlConnectionString", out _), "SQL connection string leaked");
+            Assert.False(json.TryGetProperty("mongoConnectionString", out _), "Mongo connection string leaked");
         }
 
         [Fact]
@@ -102,8 +106,7 @@ namespace Tailwind.Traders.Web.Tests
             var c = _fx.Factory.CreateClient();
             var login = await c.PostAsync("/api/v1/login",
                 Body("{\"username\":\"baseline@contoso.com\",\"password\":\"x\",\"grant_type\":\"password\"}"));
-            Assert.Equal(Baseline.LoginStatus, login.StatusCode);
-            if (login.StatusCode != HttpStatusCode.OK) return; // documented legacy quirk, see Baseline
+            Assert.True(Baseline.LoginStatus == login.StatusCode, $"{login.StatusCode}: {await login.Content.ReadAsStringAsync()}");
 
             var token = (await Json(login)).GetProperty("access_token").GetProperty("token").GetString();
             c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -114,18 +117,18 @@ namespace Tailwind.Traders.Web.Tests
             var guid = (await Json(add)).GetProperty("id").GetString();
 
             var cart = (await Json(await c.GetAsync("/api/v1/shoppingcart"))).EnumerateArray().ToList();
-            var item = Assert.Single(cart, i => i.GetProperty("guid").GetString() == guid);
+            var item = Assert.Single(cart, i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == guid);
             Assert.Equal(2, item.GetProperty("qty").GetInt32());
 
             var upd = await c.PostAsync("/api/v1/shoppingcart/product", Body($"{{\"id\":\"{guid}\",\"qty\":5}}"));
             Assert.Equal(HttpStatusCode.Created, upd.StatusCode);
             cart = (await Json(await c.GetAsync("/api/v1/shoppingcart"))).EnumerateArray().ToList();
-            Assert.Equal(5, cart.Single(i => i.GetProperty("guid").GetString() == guid).GetProperty("qty").GetInt32());
+            Assert.Equal(5, cart.Single(i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == guid).GetProperty("qty").GetInt32());
 
             var del = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/shoppingcart/product") { Content = Body($"{{\"id\":\"{guid}\"}}") };
             Assert.Equal(HttpStatusCode.OK, (await c.SendAsync(del)).StatusCode);
             cart = (await Json(await c.GetAsync("/api/v1/shoppingcart"))).EnumerateArray().ToList();
-            Assert.DoesNotContain(cart, i => i.GetProperty("guid").GetString() == guid);
+            Assert.DoesNotContain(cart, i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == guid);
         }
     }
 
@@ -143,12 +146,14 @@ namespace Tailwind.Traders.Web.Tests
         public const string Product1Name = "Microwave 0.9 Cu. Ft. 900 W";
         public const decimal Product1Price = 100.00m;
 
-        // ---- Legacy bugs discovered by these tests (pinned as-is; fixed in Phase 1) ----
-        // 1) Startup never calls app.UseAuthorization(), so every [Authorize] endpoint (profile, shopping cart)
-        //    throws InvalidOperationException => HTTP 500, even for anonymous callers.
-        public const HttpStatusCode AuthorizedEndpointAnonymousStatus = HttpStatusCode.InternalServerError;
-        // 2) TokenRequest uses Newtonsoft [JsonProperty("grant_type")] but the app uses System.Text.Json,
-        //    so grant_type never binds and every standalone login returns 400.
-        public const HttpStatusCode LoginStatus = HttpStatusCode.BadRequest;
+        // ---- Legacy bugs found in Phase 0, FIXED in Phase 1 (.NET 10) ----
+        // 1) Was 500: Startup never called app.UseAuthorization(). Now anonymous callers get 401.
+        public const HttpStatusCode AuthorizedEndpointAnonymousStatus = HttpStatusCode.Unauthorized;
+        // 2) Was 400: Newtonsoft [JsonProperty("grant_type")] ignored by System.Text.Json. Now [JsonPropertyName].
+        public const HttpStatusCode LoginStatus = HttpStatusCode.OK;
+        // 3) Settings leaked DB connection strings (Newtonsoft [JsonIgnore] ignored) — asserted in Settings test.
+        // 4) Cart items were serialized as "guid" but the React UI reads "_cdbid" (Newtonsoft attribute ignored),
+        //    so quantity update/delete from the UI never matched. Now "_cdbid" as the UI expects.
+        public const string CartItemIdProperty = "_cdbid";
     }
 }
