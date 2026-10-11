@@ -24,10 +24,10 @@ class DebugHeader extends Component {
         }
         
         if (debugInfo.sqlServerName) {
-            spans.push(<span style={{ "margin": "0px 20px" }}>SQL Server: <strong>{debugInfo.sqlServerName}</strong></span>)
+            spans.push(<span style={{ "margin": "0px 20px" }}>Catalog DB (PostgreSQL): <strong>{debugInfo.sqlServerName}</strong></span>)
         }
-        if (debugInfo.mongoServerName) {
-            spans.push(<span style={{ "margin": "0px 20px" }}>Mongo Server: <strong>{debugInfo.mongoServerName}</strong></span>)
+        if (debugInfo.cartTableName) {
+            spans.push(<span style={{ "margin": "0px 20px" }}>Cart (DynamoDB): <strong>{debugInfo.cartTableName}</strong></span>)
         }
 
         if (this.state.debugInfo.showDebug) {

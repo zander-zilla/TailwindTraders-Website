@@ -1,4 +1,4 @@
-# Local full stack: hardened web image + PostgreSQL 17 (catalog, EF Core) + MongoDB (cart until Phase 3b).
+# Local full stack: hardened web image + PostgreSQL 17 (catalog, EF Core) + DynamoDB Local (cart).
 # All images are multi-arch: runs natively on Apple Silicon (no emulation needed since Phase 3a).
 #   docker compose -f docker-compose.standalone.yml up -d --build
 #   open http://localhost:2000   (liveness: http://localhost:2000/healthz)
@@ -6,6 +6,11 @@
 name: tailwindtraders
 
 x-pg-connection: &pg "Host=postgres;Port=5432;Database=tailwind;Username=tailwind;Password=${PG_PASSWORD:-tailwind-local}"
+# Cart in DynamoDB Local. In AWS: no ServiceUrl, Cart__CreateTable=false (table from IaC), credentials via EKS Pod Identity.
+x-cart: &cart
+  Cart__TableName: "tt-cart"
+  Cart__ServiceUrl: "http://dynamodb:8000"
+  Cart__Region: "us-east-1"
 
 services:
   # One-shot migrate step (same image, `--migrate`): applies EF Core migrations + idempotent seed, then exits.
@@ -19,8 +24,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      dynamodb:
+        condition: service_started
     environment:
       ConnectionStrings__Products: *pg
+      <<: *cart
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -31,15 +39,12 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      mongo:
-        condition: service_healthy
     restart: on-failure
     environment:
       ConnectionStrings__Products: *pg
-      MongoConnectionString: "mongodb://mongo:27017"
+      <<: *cart
       ApiUrl: "/api/v1"
       ApiUrlShoppingCart: "/api/v1"
-      # Phase 3b: Cart__TableName: "tt-cart"  AWS__ServiceURL: "http://dynamodb:8000"  AWS_REGION: "us-east-1"
     ports: ["2000:8080"]
     read_only: true            # app writes nothing to disk
     tmpfs: ["/tmp"]
@@ -62,20 +67,11 @@ services:
       timeout: 5s
       retries: 12
 
-  mongo:
-    image: mongo:7
-    ports: ["27017:27017"]
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-
-  # ---- Phase 3b (planned): replaces `mongo` ----
-  # dynamodb:
-  #   image: amazon/dynamodb-local:latest
-  #   command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
-  #   ports: ["8000:8000"]
+  # Cart store. Multi-arch image (native arm64). In-memory: cart is empty after restart (TTL not enforced locally).
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    ports: ["8000:8000"]
 
 volumes:
   pgdata:

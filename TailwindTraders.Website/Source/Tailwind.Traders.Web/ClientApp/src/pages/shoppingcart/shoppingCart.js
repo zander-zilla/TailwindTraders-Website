@@ -43,12 +43,17 @@ class ShoppingCart extends Component {
 
     async updateQty(id, qty) {
         this.setState({ isPulling: true }, async () => {
-            if (qty > 0) {
-                await CartService.updateQuantity(id, qty, this.props.userInfo.token)
-                await this.updateShoppingCartState(id, qty);
-            } else {
-                await CartService.deleteProduct(id, this.props.userInfo.token);
-                await this.cleanShoppingCartState(id, qty);
+            try {
+                if (qty > 0) {
+                    await CartService.updateQuantity(id, qty, this.props.userInfo.token)
+                    await this.updateShoppingCartState(id, qty);
+                } else {
+                    await CartService.deleteProduct(id, this.props.userInfo.token);
+                    await this.cleanShoppingCartState(id, qty);
+                }
+            } catch (e) {
+                // 404 = line no longer exists (e.g. removed in another tab); the 1s cart poll resyncs the list.
+                await this.cleanShoppingCartState(id, 0);
             }
             this.setState({ isPulling: false })
 

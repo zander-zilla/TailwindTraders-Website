@@ -38,6 +38,8 @@ namespace Tailwind.Traders.Web.Tests
             // .NET 5 app leaked SqlConnectionString / MongoConnectionString (with passwords) to the browser.
             Assert.False(json.TryGetProperty("sqlConnectionString", out _), "SQL connection string leaked");
             Assert.False(json.TryGetProperty("connectionStrings", out _), "Connection strings leaked");
+            // Phase 3b: the browser Cosmos settings (incl. Cart.AuthKey, a DB master key) are gone.
+            Assert.False(json.TryGetProperty("cart", out _), "Cart (Cosmos AuthKey) settings leaked");
             Assert.False(json.TryGetProperty("mongoConnectionString", out _), "Mongo connection string leaked");
         }
 
@@ -120,28 +122,42 @@ namespace Tailwind.Traders.Web.Tests
             var token = (await Json(login)).GetProperty("access_token").GetProperty("token").GetString();
             c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+            // Client-sent name/price/image are ignored since Phase 3b: the server uses the catalog (PostgreSQL).
             var add = await c.PostAsync("/api/v1/shoppingcart",
-                Body("{\"detailProduct\":{\"id\":1,\"name\":\"P1\",\"imageUrl\":\"p1.jpg\",\"price\":10.5},\"qty\":2}"));
+                Body("{\"detailProduct\":{\"id\":1,\"name\":\"P1\",\"imageUrl\":\"p1.jpg\",\"price\":0.01},\"qty\":2}"));
             Assert.Equal(HttpStatusCode.Created, add.StatusCode);
-            var guid = (await Json(add)).GetProperty("id").GetString();
+            var lineId = (await Json(add)).GetProperty("id").GetString();
+            Assert.Equal("1", lineId); // line id = product id (DynamoDB sort key)
+
+            // Adding the same product again merges into ONE line (legacy: a second line was created).
+            Assert.Equal(HttpStatusCode.Created, (await c.PostAsync("/api/v1/shoppingcart",
+                Body("{\"detailProduct\":{\"id\":1},\"qty\":1}"))).StatusCode);
 
             var cart = (await Json(await c.GetAsync("/api/v1/shoppingcart"))).EnumerateArray().ToList();
-            var item = Assert.Single(cart, i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == guid);
-            Assert.Equal(2, item.GetProperty("qty").GetInt32());
+            var item = Assert.Single(cart, i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == lineId);
+            Assert.Equal(Baseline.CartQtyAfterAdding2Then1, item.GetProperty("qty").GetInt32());
+            Assert.Equal(Baseline.Product1Name, item.GetProperty("name").GetString());
+            Assert.Equal(Baseline.Product1Price, item.GetProperty("price").GetDecimal());
+            Assert.Equal(1, item.GetProperty("id").GetInt32());
 
-            var upd = await c.PostAsync("/api/v1/shoppingcart/product", Body($"{{\"id\":\"{guid}\",\"qty\":5}}"));
+            var upd = await c.PostAsync("/api/v1/shoppingcart/product", Body($"{{\"id\":\"{lineId}\",\"qty\":5}}"));
             Assert.Equal(HttpStatusCode.Created, upd.StatusCode);
             cart = (await Json(await c.GetAsync("/api/v1/shoppingcart"))).EnumerateArray().ToList();
-            Assert.Equal(5, cart.Single(i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == guid).GetProperty("qty").GetInt32());
+            Assert.Equal(5, cart.Single(i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == lineId).GetProperty("qty").GetInt32());
 
-            var del = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/shoppingcart/product") { Content = Body($"{{\"id\":\"{guid}\"}}") };
+            var del = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/shoppingcart/product") { Content = Body($"{{\"id\":\"{lineId}\"}}") };
             Assert.Equal(HttpStatusCode.OK, (await c.SendAsync(del)).StatusCode);
             cart = (await Json(await c.GetAsync("/api/v1/shoppingcart"))).EnumerateArray().ToList();
-            Assert.DoesNotContain(cart, i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == guid);
+            Assert.DoesNotContain(cart, i => i.GetProperty(Baseline.CartItemIdProperty).GetString() == lineId);
+
+            // Phase 3b: update/delete of a line that doesn't exist -> 404 (legacy: 201/200 even when nothing matched).
+            Assert.Equal(Baseline.CartMissingLineStatus, (await c.PostAsync("/api/v1/shoppingcart/product", Body($"{{\"id\":\"{lineId}\",\"qty\":3}}"))).StatusCode);
+            var del2 = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/shoppingcart/product") { Content = Body($"{{\"id\":\"{lineId}\"}}") };
+            Assert.Equal(Baseline.CartMissingLineStatus, (await c.SendAsync(del2)).StatusCode);
         }
     }
 
-    /// <summary>Golden values captured from the legacy .NET 5 app on SQL Server; unchanged on PostgreSQL + EF Core (Phase 3a).</summary>
+    /// <summary>Golden values captured from the legacy .NET 5 app on SQL Server; unchanged on PostgreSQL + EF Core (Phase 3a); cart changes in Phase 3b are listed below.</summary>
     internal static class Baseline
     {
         public const int BrandCount = 4;
@@ -164,5 +180,12 @@ namespace Tailwind.Traders.Web.Tests
         // 4) Cart items were serialized as "guid" but the React UI reads "_cdbid" (Newtonsoft attribute ignored),
         //    so quantity update/delete from the UI never matched. Now "_cdbid" as the UI expects.
         public const string CartItemIdProperty = "_cdbid";
+
+        // ---- Intentional behavior changes in Phase 3b (MongoDB -> DynamoDB cart) ----
+        // Legacy: each POST inserted a new document, so adding qty 2 then 1 gave two lines (2 and 1).
+        // Now: one line per (user, product); quantities are added atomically.
+        public const int CartQtyAfterAdding2Then1 = 3;
+        // Legacy: update/delete returned 201/200 even when nothing matched.
+        public const HttpStatusCode CartMissingLineStatus = HttpStatusCode.NotFound;
     }
 }

@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Full stack via docker compose (postgres + migrate job + web + mongo)
+    - name: Full stack via docker compose (postgres + dynamodb-local + migrate job + web)
       working-directory: TailwindTraders.Website/Source
       run: |
         docker compose -f docker-compose.standalone.yml up -d --build --quiet-pull
@@ -44,6 +44,10 @@ jobs:
         curl -fsS "http://localhost:2000/api/v1/products?type=home" | grep -q '"products":\[{'
         curl -fsS http://localhost:2000/api/v1/products/1 | grep -q 'Microwave'
         curl -fsS http://localhost:2000/ | grep -qi '<!doctype html>'
+        # cart round trip against DynamoDB Local
+        TOKEN=$(curl -fsS -H 'Content-Type: application/json' -d '{"username":"ci@contoso.com","password":"x","grant_type":"password"}' http://localhost:2000/api/v1/login | jq -r .access_token.token)
+        curl -fsS -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"detailProduct":{"id":1},"qty":2}' http://localhost:2000/api/v1/shoppingcart
+        curl -fsS -H "Authorization: Bearer $TOKEN" http://localhost:2000/api/v1/shoppingcart | jq -e '.[0].qty == 2 and .[0].price == 100'
     - name: Logs on failure
       if: failure()
       working-directory: TailwindTraders.Website/Source

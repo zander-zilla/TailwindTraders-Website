@@ -26,8 +26,8 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 | 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Done | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
 | 1 | .NET 5 → .NET 10, package upgrades, legacy bug fixes (incl. a connection-string leak), Node 22 frontend build | ✅ Done | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
 | 2 | Hardened containers: chiseled .NET 10 image (956 → 249 MB, 0 critical/high CVEs), Trivy gate + SBOM in CI, local compose full stack | ✅ Done | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
-| 3a | SQL Server → PostgreSQL 17 with EF Core 10: migrations + `--migrate` step, bundled idempotent seed, case-insensitive search | 🟡 In review | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
-| 3b | Cart MongoDB → Amazon DynamoDB | ⚪ Planned | — |
+| 3a | SQL Server → PostgreSQL 17 with EF Core 10: migrations + `--migrate` step, bundled idempotent seed, case-insensitive search | ✅ Done | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
+| 3b | Cart MongoDB → Amazon DynamoDB: PK user / SK product, TTL, server-side prices, DynamoDB Local | 🟡 In review | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
 | 4 | Amazon EKS + Helm, Secrets Manager, ALB ingress, Pod Identity | ⚪ Planned | — |
 | 5 | CI/CD to ECR/EKS via GitHub OIDC | ⚪ Planned | — |
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⚪ Planned | — |
@@ -37,7 +37,7 @@ Details, estimates and risks: [PLAN.md](PLAN.md).
 
 ## AWS setup
 
-> ⚠️ **The AWS infrastructure is planned and NOT yet implemented.** The catalog already runs on PostgreSQL locally (Phase 3a), and the cart still uses MongoDB. AWS resources (Aurora, DynamoDB), Helm charts, IaC and the deploy pipeline arrive in **Phases 3b–6**. Nothing in this repo deploys to AWS yet.
+> ⚠️ **The AWS infrastructure is planned and NOT yet implemented.** The app already runs locally against PostgreSQL (catalog) and DynamoDB Local (cart). The AWS resources themselves (Aurora, the DynamoDB table, EKS), Helm charts, IaC and the deploy pipeline arrive in **Phases 4–6**. Nothing in this repo deploys to AWS yet.
 
 What the target deployment will require:
 - An **AWS account** and region, with permissions to create the resources below (Terraform or AWS CDK is planned as optional IaC).
@@ -52,28 +52,28 @@ Further reading: [modernization overview](docs/modernization/README.md) · [curr
 
 ## Run it locally today
 
-The app currently runs in **Standalone mode**: it hosts its own product, cart and login APIs, backed by PostgreSQL 17 (catalog, EF Core) + MongoDB (cart until Phase 3b).
+The app currently runs in **Standalone mode**: it hosts its own product, cart and login APIs, backed by PostgreSQL 17 (catalog, EF Core) + Amazon DynamoDB (cart; DynamoDB Local for development).
 
-**Option A: Docker Compose** (hardened web image + PostgreSQL 17 + MongoDB 7, all native on Apple Silicon; a one-shot `migrate` service applies EF Core migrations + seed; liveness at `/healthz`):
+**Option A: Docker Compose** (hardened web image + PostgreSQL 17 + DynamoDB Local, all native on Apple Silicon; a one-shot `migrate` service applies EF Core migrations + seed and creates the cart table; liveness at `/healthz`):
 ```bash
 docker compose -f TailwindTraders.Website/Source/docker-compose.standalone.yml up --build
 # open http://localhost:2000  (seed data is bundled in the repo; no internet needed)
 ```
 
-**Option B: .NET 10 SDK + Node 22** (with PostgreSQL and MongoDB running somewhere):
+**Option B: .NET 10 SDK + Node 22** (with PostgreSQL and DynamoDB Local running somewhere, e.g. `docker run -p 8000:8000 amazon/dynamodb-local`):
 ```bash
 cd TailwindTraders.Website/Source/Tailwind.Traders.Web
 (cd ClientApp && npm ci --legacy-peer-deps && npm run build)
 export ConnectionStrings__Products='Host=localhost;Database=tailwind;Username=tailwind;Password=<pwd>'
-export MongoConnectionString='mongodb://localhost:27017' ApiUrl=/api/v1 ApiUrlShoppingCart=/api/v1
+export Cart__ServiceUrl='http://localhost:8000' ApiUrl=/api/v1 ApiUrlShoppingCart=/api/v1   # omit ServiceUrl in AWS (credential chain / Pod Identity)
 dotnet run -p:BuildingDocker=true -- --migrate   # apply migrations + seed, then exit
 dotnet run -p:BuildingDocker=true
 ```
 
-**Tests** (Docker required; Testcontainers starts PostgreSQL 17 and MongoDB):
+**Tests** (Docker required; Testcontainers starts PostgreSQL 17 and DynamoDB Local):
 ```bash
 cd TailwindTraders.Website/Source
-dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true   # 19 tests
+dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true   # 23 tests
 ```
 Container size and vulnerability comparison: [docs/modernization/container-scan.md](docs/modernization/container-scan.md). See the [test README](TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests/README.md) for the pinned baseline values and the legacy bugs they uncovered.
 
