@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,7 +19,13 @@ var startupLogger = startupLoggerFactory.CreateLogger("Startup");
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
-builder.Services.AddHealthChecks(); // liveness only; DB readiness checks come in Phase 6
+// Liveness (/healthz) = process only. Readiness (/readyz) adds PostgreSQL + DynamoDB checks (tag "ready").
+var health = builder.Services.AddHealthChecks();
+if (builder.Configuration.IsStandaloneEnabled())
+{
+    health.AddCheck<Tailwind.Traders.Web.Standalone.CatalogDbReadinessCheck>("postgres", tags: new[] { "ready" }, timeout: TimeSpan.FromSeconds(3));
+    health.AddCheck<Tailwind.Traders.Web.Standalone.CartTableReadinessCheck>("dynamodb", tags: new[] { "ready" }, timeout: TimeSpan.FromSeconds(3));
+}
 builder.Services.Configure<Settings>(builder.Configuration);
 builder.Services.AddStandalone(builder.Configuration, startupLogger);
 
@@ -65,7 +72,8 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapHealthChecks("/healthz"); // liveness probe target (container/Kubernetes)
+app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false }); // liveness: process up
+app.MapHealthChecks("/readyz", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") }); // readiness: dependencies
 app.MapControllers();
 app.MapControllerRoute(name: "default", pattern: "{controller}/{action=Index}/{id?}");
 
