@@ -1,0 +1,11 @@
+# kind cluster for the Tailwind Traders demo. Works on Apple Silicon (arm64 node image) and x86.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: tailwindtraders
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080   # Service NodePort (values-kind.yaml)
+        hostPort: 2000         # http://localhost:2000
+        listenAddress: "127.0.0.1"
+        protocol: TCP

@@ -1,0 +1,56 @@
+# Local-only backing services for kind: PostgreSQL 17 (catalog) and DynamoDB Local (cart).
+# Ephemeral (emptyDir / in-memory). In AWS these are Aurora PostgreSQL and Amazon DynamoDB.
+apiVersion: v1
+kind: Secret
+metadata: { name: postgres-local, labels: { app.kubernetes.io/part-of: tailwindtraders-deps } }
+type: Opaque
+stringData: { POSTGRES_DB: tailwind, POSTGRES_USER: tailwind, POSTGRES_PASSWORD: tailwind-local }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: postgres, labels: { app: postgres, app.kubernetes.io/part-of: tailwindtraders-deps } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          envFrom: [{ secretRef: { name: postgres-local } }]
+          env: [{ name: PGDATA, value: /var/lib/postgresql/data/pgdata }]
+          ports: [{ containerPort: 5432 }]
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "tailwind", "-d", "tailwind"] }
+            periodSeconds: 3
+          resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+      volumes: [{ name: data, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: postgres, labels: { app.kubernetes.io/part-of: tailwindtraders-deps } }
+spec: { selector: { app: postgres }, ports: [{ port: 5432, targetPort: 5432 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dynamodb, labels: { app: dynamodb, app.kubernetes.io/part-of: tailwindtraders-deps } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: dynamodb } }
+  template:
+    metadata: { labels: { app: dynamodb } }
+    spec:
+      containers:
+        - name: dynamodb
+          image: amazon/dynamodb-local:latest
+          args: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+          ports: [{ containerPort: 8000 }]
+          readinessProbe: { tcpSocket: { port: 8000 }, periodSeconds: 3 }
+          resources: { requests: { cpu: 50m, memory: 256Mi }, limits: { memory: 768Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: dynamodb, labels: { app.kubernetes.io/part-of: tailwindtraders-deps } }
+spec: { selector: { app: dynamodb }, ports: [{ port: 8000, targetPort: 8000 }] }

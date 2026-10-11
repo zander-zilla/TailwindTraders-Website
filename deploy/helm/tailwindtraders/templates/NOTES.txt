@@ -1,0 +1,10 @@
+Tailwind Traders {{ .Values.image.tag }} installed in namespace {{ .Release.Namespace }}.
+Migrations/seed ran in the pre-install hook Job "{{ include "tt.fullname" . }}-migrate".
+{{- if .Values.ingress.enabled }}
+URL: http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host | default "<ingress address>" }}/   (kubectl get ingress -n {{ .Release.Namespace }})
+{{- else if eq .Values.service.type "NodePort" }}
+NodePort {{ .Values.service.nodePort }} (kind: http://localhost:2000 via extraPortMappings)
+{{- else }}
+kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "tt.fullname" . }} 2000:{{ .Values.service.port }}   ->  http://localhost:2000
+{{- end }}
+Health: /healthz (liveness), /readyz (PostgreSQL + DynamoDB).

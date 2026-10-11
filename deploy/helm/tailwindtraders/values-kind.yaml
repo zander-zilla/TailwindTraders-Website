@@ -1,0 +1,26 @@
+# Local kind cluster (Apple Silicon or x86). Dependencies come from deploy/kind/dependencies.yaml
+# (postgres:17 + amazon/dynamodb-local, in-cluster, ephemeral). Use scripts/kind-up.sh.
+image:
+  repository: tailwindtraders/web
+  tag: local
+  pullPolicy: Never           # image is side-loaded with `kind load docker-image`
+replicaCount: 1
+config:
+  Cart__ServiceUrl: http://dynamodb:8000
+  Cart__CreateTable: "true"   # migrate Job creates the table in DynamoDB Local
+secrets:
+  mode: secret
+  values:
+    # Local demo credentials only (matches deploy/kind/dependencies.yaml).
+    ConnectionStrings__Products: Host=postgres;Port=5432;Database=tailwind;Username=tailwind;Password=tailwind-local
+service:
+  type: NodePort
+  nodePort: 30080             # kind extraPortMappings: host 2000 -> node 30080
+ingress:
+  enabled: false              # no ingress controller needed locally (set enabled+className to try one)
+podDisruptionBudget:
+  enabled: false              # single replica locally
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 512Mi }
+topologySpreadConstraints: []
