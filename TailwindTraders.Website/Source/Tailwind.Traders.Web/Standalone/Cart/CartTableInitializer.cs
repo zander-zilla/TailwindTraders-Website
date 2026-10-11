@@ -31,6 +31,42 @@ namespace Tailwind.Traders.Web.Standalone.Cart
                 logger.LogInformation("Cart:CreateTable=false, so DynamoDB table {Table} is expected to exist (IaC).", options.TableName);
                 return;
             }
+            // DynamoDB Local may still be starting (compose `service_started`): retry connection errors for ~30s.
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    await CreateIfMissingAsync(ct);
+                    break;
+                }
+                catch (System.Net.Http.HttpRequestException) when (attempt < 30)
+                {
+                    logger.LogInformation("DynamoDB not reachable yet (attempt {Attempt}), retrying...", attempt);
+                    await Task.Delay(1000, ct);
+                }
+            }
+
+            for (var i = 0; i < 60; i++)
+            {
+                var d = await ddb.DescribeTableAsync(options.TableName, ct);
+                if (d.Table.TableStatus == TableStatus.ACTIVE) break;
+                await Task.Delay(1000, ct);
+            }
+
+            var ttl = await ddb.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = options.TableName }, ct);
+            if (ttl.TimeToLiveDescription?.TimeToLiveStatus != TimeToLiveStatus.ENABLED)
+            {
+                await ddb.UpdateTimeToLiveAsync(new UpdateTimeToLiveRequest
+                {
+                    TableName = options.TableName,
+                    TimeToLiveSpecification = new TimeToLiveSpecification { AttributeName = "expiresAt", Enabled = true },
+                }, ct);
+                logger.LogInformation("Enabled TTL on {Table}.expiresAt.", options.TableName);
+            }
+        }
+
+        private async Task CreateIfMissingAsync(CancellationToken ct)
+        {
             try
             {
                 await ddb.CreateTableAsync(new CreateTableRequest
@@ -53,24 +89,6 @@ namespace Tailwind.Traders.Web.Standalone.Cart
             catch (ResourceInUseException)
             {
                 logger.LogInformation("DynamoDB table {Table} already exists.", options.TableName);
-            }
-
-            for (var i = 0; i < 60; i++)
-            {
-                var d = await ddb.DescribeTableAsync(options.TableName, ct);
-                if (d.Table.TableStatus == TableStatus.ACTIVE) break;
-                await Task.Delay(1000, ct);
-            }
-
-            var ttl = await ddb.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = options.TableName }, ct);
-            if (ttl.TimeToLiveDescription?.TimeToLiveStatus != TimeToLiveStatus.ENABLED)
-            {
-                await ddb.UpdateTimeToLiveAsync(new UpdateTimeToLiveRequest
-                {
-                    TableName = options.TableName,
-                    TimeToLiveSpecification = new TimeToLiveSpecification { AttributeName = "expiresAt", Enabled = true },
-                }, ct);
-                logger.LogInformation("Enabled TTL on {Table}.expiresAt.", options.TableName);
             }
         }
     }
