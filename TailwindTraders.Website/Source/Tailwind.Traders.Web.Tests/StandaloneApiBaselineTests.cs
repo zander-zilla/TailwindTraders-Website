@@ -41,6 +41,9 @@ namespace Tailwind.Traders.Web.Tests
             // Phase 3b: the browser Cosmos settings (incl. Cart.AuthKey, a DB master key) are gone.
             Assert.False(json.TryGetProperty("cart", out _), "Cart (Cosmos AuthKey) settings leaked");
             Assert.False(json.TryGetProperty("mongoConnectionString", out _), "Mongo connection string leaked");
+            // Phase 7: Azure Communication Services connection string (served to the browser), B2C, App Insights removed.
+            foreach (var gone in new[] { "acs", "useB2C", "b2CAuth", "applicationInsights", "logicAppUrl", "email", "lpkRouteHeader" })
+                Assert.False(json.TryGetProperty(gone, out _), $"legacy setting '{gone}' still served");
         }
 
         [Fact]

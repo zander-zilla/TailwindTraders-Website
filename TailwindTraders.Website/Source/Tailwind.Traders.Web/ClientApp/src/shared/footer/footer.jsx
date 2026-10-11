@@ -1,0 +1,23 @@
+import React from "react";
+import { Link } from "react-router-dom";
+
+import { withTranslation } from "react-i18next";
+
+import Logo from "../../assets/images/logo-horizontal.svg?react";
+
+const Footer = ({ t }) => {
+    return (
+        <footer className="foo">
+            <div className="foo__content">
+                <Link className="foo__link" to="/">
+                    <Logo />
+                </Link>
+                <div className="foo__disclaimer">
+                    <p className="foo-text">{t("shared.footer.disclaimer")}</p>
+                </div>
+            </div>
+        </footer>
+    );
+};
+
+export default withTranslation()(Footer);

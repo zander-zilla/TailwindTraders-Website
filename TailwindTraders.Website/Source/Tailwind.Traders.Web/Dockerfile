@@ -10,7 +10,7 @@ ARG NODE_VERSION=22
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS build-node
 WORKDIR /src/ClientApp
 COPY ClientApp/package.json ClientApp/package-lock.json ./
-RUN npm ci --legacy-peer-deps --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 COPY ClientApp/ ./
 RUN npm run build && rm -rf node_modules
 

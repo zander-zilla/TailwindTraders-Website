@@ -5,7 +5,6 @@ import {
     setRefreshToken
 } from './tokensHelper';
 import { ConfigService } from '../services'
-import AuthB2CService from '../services/authB2CService';
 
 let failedRequestToRetry = [];
 let isAlreadyFetchingAccessToken = false;
@@ -36,12 +35,6 @@ const onAccessTokenFetched = (accessToken) => {
 export const handleUnathenticatedRequest = async (authenticationError) => {
     try {
         const { response: errorResponse } = authenticationError;
-        const useB2cFromEnv = process.env.REACT_APP_USE_B2C ? JSON.parse(process.env.REACT_APP_USE_B2C.toLowerCase()) : false;
-
-        if (useB2cFromEnv) {
-            return handleUnathenticatedRequestFromB2c(errorResponse, authenticationError);
-        }
-
         return handleUnathenticatedRequestFromFake(errorResponse, authenticationError);
     } catch (err) {
         return Promise.reject(err);
@@ -72,27 +65,6 @@ const handleUnathenticatedRequestFromFake = async (errorResponse, authentication
         isAlreadyFetchingAccessToken = false;
         onAccessTokenFetched(newJWTokens.newAccessToken);
     }
-
-    return retryOriginalRequest(errorResponse);
-}
-
-const handleUnathenticatedRequestFromB2c = async (errorResponse, authenticationError) => {
-    const authB2CService = new AuthB2CService();
-    let accessToken;
-
-    try {
-        accessToken = await authB2CService.getToken();
-    } catch (e) {
-        await authB2CService.login();
-        accessToken = await authB2CService.getToken();
-   }
- 
-    if (!accessToken) {
-        // We can't refresh, throw the error
-        return Promise.reject(authenticationError);
-    }
-
-    setAccessToken(accessToken);
 
     return retryOriginalRequest(errorResponse);
 }
