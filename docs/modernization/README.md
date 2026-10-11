@@ -70,7 +70,7 @@ flowchart LR
 | 5 | AWS IaC (Terraform: VPC, EKS Graviton, Aurora PG17 Serverless v2, DynamoDB, ECR, Pod Identity, GitHub OIDC) + `deploy-aws` CI/CD | ✅ Merged (code validated; **not applied** yet) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
 | 6 | OpenTelemetry (traces/metrics/logs, browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch agent → X-Ray/Application Signals on EKS, HTTP resilience | ✅ Merged | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
 | 7 | Frontend: CRA → Vite 7, React 18, react-router 7; ACS/B2C/App Insights/Fluent removed; Vitest + Playwright | 🟡 In review | [#11](https://github.com/zander-zilla/TailwindTraders-Website/pull/11) |
-| 8 | AI: semantic product search (pgvector + Bedrock Titan embeddings; offline provider locally), optional Bedrock RAG assistant | 🟡 In review | Phase 8 PR |
+| 8 | AI: semantic product search (pgvector + Bedrock Titan embeddings; offline provider locally), optional Bedrock RAG assistant | 🟡 In review | [#12](https://github.com/zander-zilla/TailwindTraders-Website/pull/12) |
 
 ## Data flow & containers
 - [SQL Server → PostgreSQL data migration with AWS DMS](sqlserver-to-postgres-dms.md) (docs only) and the generated [idempotent schema script](catalog-schema.postgres.sql).
