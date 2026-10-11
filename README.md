@@ -27,8 +27,8 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 | 1 | .NET 5 → .NET 10, package upgrades, legacy bug fixes (incl. a connection-string leak), Node 22 frontend build | ✅ Done | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
 | 2 | Hardened containers: chiseled .NET 10 image (956 → 249 MB, 0 critical/high CVEs), Trivy gate + SBOM in CI, local compose full stack | ✅ Done | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
 | 3a | SQL Server → PostgreSQL 17 with EF Core 10: migrations + `--migrate` step, bundled idempotent seed, case-insensitive search | ✅ Done | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
-| 3b | Cart MongoDB → Amazon DynamoDB: PK user / SK product, TTL, server-side prices, DynamoDB Local | 🟡 In review | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
-| 4 | Amazon EKS + Helm, Secrets Manager, ALB ingress, Pod Identity | ⚪ Planned | — |
+| 3b | Cart MongoDB → Amazon DynamoDB: PK user / SK product, TTL, server-side prices, DynamoDB Local | ✅ Done | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
+| 4 | Kubernetes: new Helm chart (hardened, probes, HPA/PDB, migrate hook Job), kind locally, EKS values (ALB, Secrets Manager via ESO, Pod Identity) | 🟡 In review | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
 | 5 | CI/CD to ECR/EKS via GitHub OIDC | ⚪ Planned | — |
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⚪ Planned | — |
 | 7–8 | Frontend upgrade; AI features (pgvector + Amazon Bedrock) (optional) | ⚪ Planned | — |
@@ -37,7 +37,7 @@ Details, estimates and risks: [PLAN.md](PLAN.md).
 
 ## AWS setup
 
-> ⚠️ **The AWS infrastructure is planned and NOT yet implemented.** The app already runs locally against PostgreSQL (catalog) and DynamoDB Local (cart). The AWS resources themselves (Aurora, the DynamoDB table, EKS), Helm charts, IaC and the deploy pipeline arrive in **Phases 4–6**. Nothing in this repo deploys to AWS yet.
+> ⚠️ **The AWS infrastructure is planned and NOT yet implemented.** The app already runs locally against PostgreSQL (catalog) and DynamoDB Local (cart). A Helm chart now runs it on a local **kind** cluster (Phase 4, [docs](docs/modernization/kubernetes.md)), and `values-eks.yaml` is ready. The AWS resources themselves (EKS, Aurora, the DynamoDB table, ECR, IAM), IaC and the deploy pipeline arrive in **Phases 5–6**. Nothing in this repo deploys to AWS yet.
 
 What the target deployment will require:
 - An **AWS account** and region, with permissions to create the resources below (Terraform or AWS CDK is planned as optional IaC).
@@ -69,6 +69,8 @@ export Cart__ServiceUrl='http://localhost:8000' ApiUrl=/api/v1 ApiUrlShoppingCar
 dotnet run -p:BuildingDocker=true -- --migrate   # apply migrations + seed, then exit
 dotnet run -p:BuildingDocker=true
 ```
+
+**Option C: Kubernetes on kind** (Docker Desktop + `brew install kind helm kubectl`): `scripts/kind-up.sh` creates the cluster, builds and loads the image, installs the Helm chart (the migrate hook Job runs first) and serves http://localhost:2000. Use `scripts/kind-up.sh --down` to remove it. See [kubernetes.md](docs/modernization/kubernetes.md).
 
 **Tests** (Docker required; Testcontainers starts PostgreSQL 17 and DynamoDB Local):
 ```bash
