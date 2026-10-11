@@ -1,213 +1,85 @@
-# Tailwind Traders Website
+# Tailwind Traders Website: AI-assisted modernization demo
 
-> ## Modernization
-> This fork is an **AI-assisted modernization demo**: .NET 5 → .NET 10 LTS, Azure → AWS (EKS, Aurora PostgreSQL + EF Core, DynamoDB, ECR, Secrets Manager, ADOT), delivered phase by phase via PRs.
-> See **[docs/modernization](docs/modernization/README.md)** (architecture before/after, roadmap) and the **[ADRs](docs/modernization/adr/)**; detailed plan in [PLAN.md](PLAN.md).
-
+> **What is this?** A fork of [microsoft/TailwindTraders-Website](https://github.com/microsoft/TailwindTraders-Website), modernized step by step as a **demo of AI-assisted application modernization**. Each phase lands as a reviewed pull request, with its design decisions recorded as ADRs.
 
 ![Tailwind Traders Website](Documents/Images/Website.png)
 
-[![Build status](https://dev.azure.com/TailwindTraders/Website/_apis/build/status/Website-CI)](https://dev.azure.com/TailwindTraders/Website/_build?definitionId=22)
+## From → to
 
+| | Legacy (upstream) | Target (this fork) |
+|---|---|---|
+| Runtime | .NET 5 (EOL), `Startup.cs`, SpaServices | **.NET 10 LTS**, minimal hosting, SPA served as static files |
+| Hosting | Azure App Service / AKS | **Amazon EKS** with Helm (kind locally) |
+| Catalog DB | SQL Server + Dapper + hand-written T-SQL | **Aurora PostgreSQL + EF Core 10** (Npgsql) |
+| Shopping cart | Cosmos DB / MongoDB | **Amazon DynamoDB** |
+| Images / registry | Docker Hub / ACR | **Amazon ECR** |
+| Secrets | App settings / Key Vault | **AWS Secrets Manager** (External Secrets, EKS Pod Identity) |
+| Telemetry | Application Insights | **OpenTelemetry → ADOT → CloudWatch / X-Ray** |
+| CI/CD | Old GitHub Actions (ubuntu-16.04, stored secrets) | GitHub Actions with **OIDC → AWS IAM role** |
 
-# Repositories
+See the architecture diagrams in **[docs/modernization](docs/modernization/README.md)**.
 
-For this demo reference, we built several consumer and line-of-business applications and a set of backend services. You can find all repositories in the following locations:
+## Status
 
-- [Tailwind Traders](https://github.com/Microsoft/TailwindTraders)
-- [Backend (AKS)](https://github.com/Microsoft/TailwindTraders-Backend)
-- [Website (ASP.NET & React)](https://github.com/Microsoft/TailwindTraders-Website)
-- [Desktop (WinForms & WPF -.NET Core)](https://github.com/Microsoft/TailwindTraders-Desktop)
-- [Rewards (ASP.NET Framework)](https://github.com/Microsoft/TailwindTraders-Rewards)
-- [Mobile (Xamarin Forms 4.0)](https://github.com/Microsoft/TailwindTraders-Mobile)
+| Phase | Scope | Status | PR |
+|---|---|---|---|
+| 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | 🟡 In review | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
+| 1 | .NET 5 → .NET 10, package upgrades, legacy bug fixes (incl. a connection-string leak), Node 22 frontend build | 🟡 In review | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
+| 2 | Hardened containers (chiseled image, Trivy scan), local compose with Postgres + DynamoDB Local | ⚪ Planned | — |
+| 3a | SQL Server → PostgreSQL with EF Core 10 | ⚪ Planned | — |
+| 3b | Cart MongoDB → Amazon DynamoDB | ⚪ Planned | — |
+| 4 | Amazon EKS + Helm, Secrets Manager, ALB ingress, Pod Identity | ⚪ Planned | — |
+| 5 | CI/CD to ECR/EKS via GitHub OIDC | ⚪ Planned | — |
+| 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⚪ Planned | — |
+| 7–8 | Frontend upgrade; AI features (pgvector + Amazon Bedrock) (optional) | ⚪ Planned | — |
 
-# Deploy to Azure
+Details, estimates and risks: [PLAN.md](PLAN.md).
 
-With the following ARM template you can automate the creation of the resources for this website.
+## AWS setup
 
-[![Deploy to Azure](Documents/Images/deploy-to-azure.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FTailwindTraders-Website%2Fmaster%2FDeploy%2Fdeployment.json)
+> ⚠️ **The AWS infrastructure is planned and NOT yet implemented.** The code today still uses SQL Server and MongoDB. AWS resources, Helm charts, IaC and the deploy pipeline arrive in **Phases 3–6**. Nothing in this repo deploys to AWS yet.
 
-When you deploy this website to Azure you can define the [Backend](https://github.com/Microsoft/TailwindTraders-Backend) you want to use in case you have deploy your own backend. By defaults it is configured the public Backend environment provided by Microsoft.
+What the target deployment will require:
+- An **AWS account** and region, with permissions to create the resources below (Terraform or AWS CDK is planned as optional IaC).
+- **Amazon EKS** cluster with the AWS Load Balancer Controller, External Secrets Operator, the ADOT add-on and the EKS Pod Identity agent ([ADR 0009](docs/modernization/adr/0009-eks-and-helm.md)).
+- **Amazon Aurora PostgreSQL** (or RDS PostgreSQL) for the catalog ([ADR 0006](docs/modernization/adr/0006-target-aws.md), [data flow](docs/modernization/data-flow.md)).
+- **Amazon DynamoDB** table for the cart: partition key `cartId`, TTL, on-demand capacity ([ADR 0008](docs/modernization/adr/0008-dynamodb-for-cart.md)).
+- **Amazon ECR** repository for the web image.
+- **AWS Secrets Manager** entries for the database credentials and the JWT signing key.
+- An **IAM OIDC identity provider + role** for GitHub Actions; no long-lived AWS keys ([ADR 0010](docs/modernization/adr/0010-github-oidc-to-aws.md)).
 
-> Note: you can change the InstrumentationKey of the **Application Insight** that is configured by default.
+Further reading: [modernization overview](docs/modernization/README.md) · [current-state data flow](docs/modernization/data-flow.md) · [all ADRs](docs/modernization/adr/) · [PLAN.md](PLAN.md)
 
-If you want to update the application to use your own [backend](https://github.com/Microsoft/TailwindTraders-Backend), set `apiBaseUrl` parameter on the ARM template provided to the url where your aks is configured.
+## Run it locally today
 
-e.g. In order to know your AKS route you could run the following command:
+The app currently runs in **Standalone mode**: it hosts its own product, cart and login APIs, backed by SQL Server + MongoDB.
 
+**Option A: Docker Compose** (web + SQL Server 2022 + MongoDB 7):
 ```bash
-az aks show -n <aks-name> -g <resource-group> --query "addonProfiles.httpApplicationRouting.config.HTTPApplicationRoutingZoneName"
+docker compose -f TailwindTraders.Website/Source/docker-compose.standalone.yml up --build
+# open http://localhost:2000  (the DB is created and seeded on first start, which needs internet access for the seed CSVs)
 ```
 
-And it will return your base [TailwindTraders-Backend](https://github.com/Microsoft/TailwindTraders-Backend) url. Note that this will work only if your Backend is configured with the `addon-http-application-routing` ingress class (as it's by default).
-
-# Setting up Azure Communication Services
-
-Please follow these steps to setup the web to enable customer support chat and audio/video call flow.
-
-## Pre-Requisites:
-1. **You must have Azure Communication Services resource and  also the logic app setup.** Please follow the instructions on [Tailwind Traders Logic App](../TailwindTradersLogicApp) to deploy the logic app.
-2. A Microsoft Teams subscription to allow teams interoperability with Azure Communication Services.
-
-## Add config variables:
-Edit the following variables in the [appsettings.json](TailwindTraders.Website/Source/Tailwind.Traders.Web/appsettings.json) file.
-
-```
-{
-  connectionString: <ACS_CONNECTION_STRING>,
-  acsResource: <ACS_RESOURCE_URL>,
-  logicAppUrl: <LOGIC_APP_URL>,
-  email: <SUPPORT_EMAIL>,
-}
-```
-> Support email is the account which will receive a Flow bot message with the meeting details on Microsoft Teams.
-
-# Deploy as part of AKS (Azure Kubernetes Service)
-
-Please follow these steps to deploy the web in the same AKS where Backend is running instead of deploying to an App Service.
-
-**Note**: Website supports [Devspaces deployment](./Documents/Devspaces.md).
-
-## Pre-Requisites:
-
-1. **You must have an AKS with all the Tailwind Traders Backend Up & Running**. Please follow the instructions on [Tailwind Traders Backend repo](https://github.com/Microsoft/TailwindTraders-Backend/) to deploy the backend on AKS.
-
-1. **You can't install the web on a AKS Before installing the Backend on it**. This is because some configuration steps that are done when installing the Backend are needed.
-
-> Note: This document assumes you have the backend installed on an AKS and the `kubectl` is configured against this cluster.
-
-## Build and push the docker image
-
-You need to build & push the docker image for the web. You can use `docker-compose` for this task. You **must set two environment variables** before launching compose:
-
-- `TAG`: Tag to use for the generated docker image.
-- `REGISTRY`: Must be the login server of the ACR where Backend is installed.
-
-Then you need to login into the ACR by typing: `docker login -u <username> -p <password> <acr-login-server>` where `<username>` and `<password>` are the ACR credentials.
-
-Once logged in ACR you can build the web:
-
-```
-docker-compose build
+**Option B: .NET 10 SDK + Node 22** (with SQL Server and MongoDB running somewhere):
+```bash
+cd TailwindTraders.Website/Source/Tailwind.Traders.Web
+(cd ClientApp && npm ci --legacy-peer-deps && npm run build)
+export SqlConnectionString='Server=localhost,1433;Database=tailwind;User Id=sa;Password=<pwd>;TrustServerCertificate=true'
+export MongoConnectionString='mongodb://localhost:27017' ApiUrl=/api/v1 ApiUrlShoppingCart=/api/v1
+dotnet run -p:BuildingDocker=true
 ```
 
-And then you can push the images in ACR:
-
+**Tests** (Docker required; Testcontainers starts SQL Server and MongoDB):
+```bash
+cd TailwindTraders.Website/Source
+dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true   # 11 tests
 ```
-docker-compose push
-```
+See the [test README](TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests/README.md) for the pinned baseline values and the legacy bugs they uncovered.
 
-## Deploy the image on the cluster using Helm
+## Original project
 
-To deploy the web on the AKS you can use the `DeployWebAKS.ps1` script in `/Deploy` folder. This script have following parameters:
+Tailwind Traders is a reference application created by **Microsoft**. All credit for the original app goes to the Tailwind Traders team. Related upstream repositories: [Tailwind Traders](https://github.com/Microsoft/TailwindTraders), [Backend](https://github.com/Microsoft/TailwindTraders-Backend), [Website](https://github.com/Microsoft/TailwindTraders-Website).
 
-- `-aksName`: Name of the AKS (same AKS where Backend is)
-- `-resourceGroup`: Resource group of the AKS
-- `-acrName`: ACR where image is pushed. Has to be the same ACR where Backend images are.
-- `-tag`: Tag to use for the Docker image of the Web
-- `-valueSFile`: YAML files containing the values. Defaults to `gvalues.yaml`. You can use the provided `gvalues.yaml` as-is, so don't need to specify this parameter.
-- `-b2cValuesFile`: YAML file with the B2C configuration values. Defaults to `values.b2c.yaml`. If B2C login is needed, you must fill the values in the file in order to configure it.
-- `-tlsEnv`: TLS environment (staging or prod) that is installed in the cluster. Refer to the Backend repo for more information.
-- `-appInsightsName`: Application Insights' name for monitoring purposes. 
-  > **Note** The DeployWebAKS.ps1 uses, only if -appInsightsName is paseed, the _application-insights_ CLI extension to find the application insights id. Install it with `az extension add --name application-insights` if you pass it.
-- `-acsConnectionString`: Acs connection string.
-- `-acsResource`: Acs endpoint.
-- `-logicAppUrl`: Logic app trigger url.
-- `-acsEmail`: Support email account which will receive a Flow bot message.
+> **Legacy / unsupported in this fork:** the upstream Azure deployment instructions (Deploy to Azure button, App Service, AKS/Helm scripts in `TailwindTraders.Website/Deploy`, Azure Communication Services chat/video, Azure Personalizer) target .NET 5 and Azure. They are kept in the tree for reference only and are not maintained here. See the upstream README for them.
 
-To install the web in AKS my-aks using production TLS certificates, located in resource group my-rg and using an ACR named `my-acr` you can type:
-
-```
-.\DeployWebAKS.ps1 -aksName my-aks -resourceGroup my-rg -acrName my-acr -tag latest -tlsEnv prod -acsResource <my-acs> -acsConnectionString <acs-connection-string> -acsEmail <acs-email> -logicAppUrl <logic-app-url>
-```
-
-# How to use the customer support chat and audio/video call
-
-To use the customer support chat/call experience click on the chat bubble on the homepage and select the type of interaction.
-
-![Homepage chat bubble](Documents/Images/Docs/homepage-chat-bubble.png)
-
-After being redirected to the call/chat page as per your selection enter your name and then click on Done once the chat/join meeting option is enabled click to join the conversation.
-
-![Enter name](Documents/Images/Docs/meeting-enter-name.png)
-
-![Join meeting](Documents/Images/Docs/meeting-join.png)
-
-At this moment you're in the lobby once the meeting organizer lets you in the chat/call is accessible.
-
-![Meeting](Documents/Images/Docs/meeting-in-call.png)
-
-![Meeting](Documents/Images/Docs/chat.png)
-
-
-After joining in via chat/call the user is also provided with the option to switch from chat-to-call and vice-versa.
-
-![Switch to chat](Documents/Images/Docs/call-switch.png)![Switch to call](Documents/Images/Docs/chat-switch.png)
-
-
-
-
-# How to use the product search by photo
-
-To use the product search, we need to upload a photo, the website redirects to suggested products showing 3 products or less, except if only suggest 1 product. When you have only 1 suggested product, the website redirects to detail of product.
-
-Steps to search:
-
-1. In home of the website, click in the "Start smart shopping" button.
-
-![Start Smart Shopping Button](Documents/Images/Docs/Start_Smart_Shopping_Button.PNG)
-
-2. Select a photo to upload and send it.
-   - If website has more than 1 suggested products
-     - Website redirect to suggested products.
-   - If website has only a one suggested product.
-     - Website redirects to details of product.
-
-To use this search, you can use the images in:
-
-- [Documents/Images/TestImages](Documents/Images/TestImages)
-
-### Rechargable screwdriver sample
-
-If you select the [Electric Screwdriver](Documents/Images/TestImages/electric_screwdriver.jpg) should be appears 3 suggested products similar to:
-
-![Rechargeable Screwdriver Suggested Products](Documents/Images/Docs/rechargeable_Screwdriver_Suggested_Products.PNG)
-
-### Multi-tool plier sample
-
-If you select the [Multi-Tool Plier](Documents/Images/TestImages/multi-tool_plier.jpg) should be appears 3 suggested products similar to:
-
-![Multi-Tool Plier Suggested Products](Documents/Images/Docs/multi-tool_plier_Suggested_Products.PNG)
-
-### Hard hat sample
-
-If you select the [Hard Hat](Documents/Images/TestImages/hard_hat.jpg) should be redirect to product detail, beacuse only have a 1 suggested product:
-
-![Hard Hat Suggested Product Detail](Documents/Images/Docs/hard_Hat_Suggested_Product_Detail.PNG)
-
-# Contributing
-
-This project welcomes contributions and suggestions. Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.microsoft.com.
-
-When you submit a pull request, a CLA-bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-## Modernization demo (fork) — Phases 0–1
-
-This fork is being modernized step by step (see [PLAN.md](PLAN.md)). Phase 0 adds a safety net before any code changes:
-
-- **Baseline tests:** `TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests` — xUnit + `WebApplicationFactory` + Testcontainers (SQL Server 2022, MongoDB 7) that pin the Standalone-mode API behaviour. See its [README](TailwindTraders.Website/Source/Tailwind.Traders.Web.Tests/README.md).
-  ```bash
-  cd TailwindTraders.Website/Source
-  dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true
-  ```
-  Requires Docker, the .NET 10 SDK, and internet access for seed CSVs.
-- **Run the legacy app locally (Standalone mode):** `docker compose -f TailwindTraders.Website/Source/docker-compose.standalone.yml up --build`, then browse http://localhost:2000.
-  Or without Docker for the web app: start SQL Server + Mongo, set `SqlConnectionString`, `MongoConnectionString`, `ApiUrl=/api/v1`, `ApiUrlShoppingCart=/api/v1`; run `npm ci --legacy-peer-deps && npm run build` in `ClientApp` (Node 22), then `dotnet run -p:BuildingDocker=true` in `Source/Tailwind.Traders.Web` (Phase 1: .NET 10, SPA served from `ClientApp/build`).
+The original project is licensed under the MIT License (see [LICENSE](LICENSE)) and adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
