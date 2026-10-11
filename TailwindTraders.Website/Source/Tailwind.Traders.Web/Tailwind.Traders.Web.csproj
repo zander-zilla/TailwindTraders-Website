@@ -31,6 +31,8 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AWS" Version="1.19.1" />
     <PackageReference Include="Npgsql.OpenTelemetry" Version="10.0.3" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
+    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.101.9" />
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.107.1" />
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />

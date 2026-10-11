@@ -17,6 +17,13 @@ const ProductService = {
         return response;
     },
 
+    // Phase 8: semantic search (pgvector). Returns { query, model, results: [{ id, name, price, imageUrl, score, ... }] }
+    async semanticSearch(q, take = 12) {
+        await ConfigService.loadSettings();
+        const response = await axios.get(`${ConfigService._apiUrl}/products/search`, { params: { q, take } });
+        return response.data;
+    },
+
     async getFilteredProducts(type = {}) {
         await ConfigService.loadSettings();
 

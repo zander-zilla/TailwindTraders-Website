@@ -64,7 +64,7 @@ services:
     # (Kubernetes liveness probe in Phase 4).
 
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_DB: tailwind
       POSTGRES_USER: tailwind

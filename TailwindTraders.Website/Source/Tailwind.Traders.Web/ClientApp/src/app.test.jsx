@@ -63,3 +63,24 @@ describe("Footer", () => {
     expect(container.textContent).not.toMatch(/shared\.footer\./); // keys resolved
   });
 });
+
+describe("SearchResults (Phase 8 semantic search)", () => {
+  it("calls /products/search and renders hits with match %", async () => {
+    const { default: SearchResults } = await import("./pages/search/searchResults");
+    ConfigService._needLoadSettings = false;
+    ConfigService._apiUrl = "/api/v1";
+    axios.get.mockResolvedValue({
+      data: { query: "drill", model: "local-hash-v1", results: [{ id: 47, name: "Multi Function Drill", price: 40, imageUrl: "/x.jpg", score: 0.43 }] },
+    });
+    render(
+      <MemoryRouter initialEntries={["/search?q=drill"]}>
+        <Routes>
+          <Route path="/search" element={<SearchResults />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText("Multi Function Drill")).toBeInTheDocument();
+    expect(screen.getByText("43% match")).toBeInTheDocument();
+    expect(axios.get).toHaveBeenCalledWith("/api/v1/products/search", { params: { q: "drill", take: 12 } });
+  });
+});

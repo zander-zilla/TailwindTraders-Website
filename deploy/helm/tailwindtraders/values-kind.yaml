@@ -1,5 +1,5 @@
 # Local kind cluster (Apple Silicon or x86). Dependencies come from deploy/kind/dependencies.yaml
-# (postgres:17 + amazon/dynamodb-local, in-cluster, ephemeral). Use scripts/kind-up.sh.
+# (pgvector/pgvector:pg17 + amazon/dynamodb-local, in-cluster, ephemeral). Use scripts/kind-up.sh.
 image:
   repository: tailwindtraders/web
   tag: local

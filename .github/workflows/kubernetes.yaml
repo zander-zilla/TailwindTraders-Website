@@ -57,6 +57,8 @@ jobs:
           TOKEN=$(curl -fsS -H 'Content-Type: application/json' -d '{"username":"kind@contoso.com","password":"x","grant_type":"password"}' http://localhost:2000/api/v1/login | jq -r .access_token.token)
           curl -fsS -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"detailProduct":{"id":1},"qty":2}' http://localhost:2000/api/v1/shoppingcart
           curl -fsS -H "Authorization: Bearer $TOKEN" http://localhost:2000/api/v1/shoppingcart | jq -e '.[0].qty == 2 and .[0].price == 100'
+      - name: Semantic search (pgvector) on kind
+        run: curl -fsS "http://localhost:2000/api/v1/products/search?q=drill" | jq -e '.results[0].name == "Multi Function Drill"'
       - name: Verify traces reached the Aspire dashboard (OpenTelemetry)
         run: |
           set -e

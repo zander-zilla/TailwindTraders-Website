@@ -12,3 +12,8 @@ name_prefix = "tt-demo"
 
 # Set false if the account already has the GitHub OIDC provider
 # create_github_oidc_provider = false
+
+# Phase 8 (Bedrock): enable model access for these in the Bedrock console (region above)
+# bedrock_embedding_model_id = "amazon.titan-embed-text-v2:0"
+# bedrock_chat_model_id      = "us.amazon.nova-lite-v1:0"
+# assistant_enabled          = false

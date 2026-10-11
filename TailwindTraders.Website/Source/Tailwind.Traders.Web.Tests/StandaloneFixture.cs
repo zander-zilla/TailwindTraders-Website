@@ -27,7 +27,7 @@ namespace Tailwind.Traders.Web.Tests
 
             if (string.IsNullOrEmpty(pgCs))
             {
-                _pg = new PostgreSqlBuilder().WithImage("postgres:17").WithDatabase("tailwind").Build();
+                _pg = new PostgreSqlBuilder().WithImage("pgvector/pgvector:pg17").WithDatabase("tailwind").Build();
                 await _pg.StartAsync();
                 pgCs = _pg.GetConnectionString();
             }

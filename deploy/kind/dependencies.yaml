@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:17
+          image: pgvector/pgvector:pg17
           envFrom: [{ secretRef: { name: postgres-local } }]
           env: [{ name: PGDATA, value: /var/lib/postgresql/data/pgdata }]
           ports: [{ containerPort: 5432 }]

@@ -25,6 +25,14 @@ config:
   Cart__Region: <region>
   Cart__ServiceUrl: ""        # real DynamoDB endpoint
   Cart__CreateTable: "false"  # the table is owned by IaC (on-demand, TTL on expiresAt)
+  # Phase 8: semantic search embeddings via Amazon Bedrock (Pod Identity grants bedrock:InvokeModel on these models).
+  # The migrate hook Job embeds the catalog (needs Bedrock model access enabled in the account/region).
+  Ai__EmbeddingProvider: bedrock
+  Ai__Region: <region>
+  Ai__EmbeddingModelId: amazon.titan-embed-text-v2:0
+  Ai__MinScore: "0.15"
+  Ai__Assistant__Enabled: "false"                 # optional RAG assistant (POST /api/v1/assistant)
+  Ai__Assistant__ModelId: amazon.nova-lite-v1:0
   # OpenTelemetry -> CloudWatch agent (amazon-cloudwatch-observability EKS add-on, Terraform) OTLP/HTTP :4316
   # -> X-Ray traces / CloudWatch Application Signals + metrics. Logs: JSON stdout -> Container Insights (Fluent Bit).
   OTEL_SERVICE_NAME: tailwindtraders-web

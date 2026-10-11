@@ -38,6 +38,10 @@ namespace Tailwind.Traders.Web.Standalone.Data
         {
             logger.LogInformation("Applying EF Core migrations...");
             await db.Database.MigrateAsync(ct);
+            // A migration may have just created the pgvector extension: make Npgsql reload its type catalog.
+            await db.Database.OpenConnectionAsync(ct);
+            try { await ((Npgsql.NpgsqlConnection)db.Database.GetDbConnection()).ReloadTypesAsync(ct); }
+            finally { await db.Database.CloseConnectionAsync(); }
 
             var strategy = db.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>

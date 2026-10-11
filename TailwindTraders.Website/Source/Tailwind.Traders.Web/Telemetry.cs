@@ -31,6 +31,10 @@ namespace Tailwind.Traders.Web
             Meter.CreateCounter<long>("tailwindtraders.cart.units_added", "{unit}", "Product units added to carts");
         public static readonly Histogram<double> ImageSearchDuration =
             Meter.CreateHistogram<double>("tailwindtraders.image_search.duration", "s", "Image search latency (classify + catalog lookup)");
+        public static readonly Histogram<double> EmbeddingDuration =
+            Meter.CreateHistogram<double>("tailwindtraders.embedding.duration", "s", "Embedding generation latency by model");
+        public static readonly Counter<long> SemanticSearches =
+            Meter.CreateCounter<long>("tailwindtraders.semantic_search.requests", "{request}", "Semantic product searches by result (match/no_match)");
         public static readonly Counter<long> ImageSearchResults =
             Meter.CreateCounter<long>("tailwindtraders.image_search.requests", "{request}", "Image searches by result (match/no_match/error)");
     }
