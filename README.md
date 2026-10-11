@@ -32,7 +32,7 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 | 5 | AWS infrastructure as Terraform + `deploy-aws` GitHub Actions (OIDC → ECR → EKS); validated, **not yet applied** | ✅ Done (not yet applied) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
 | 6 | Observability: OpenTelemetry end to end (browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch/X-Ray on EKS, HTTP resilience | ✅ Done | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
 | 7 | Frontend: Vite 7, React 18, react-router 7; Azure-only UI (ACS video/chat, B2C, App Insights) removed; Vitest + Playwright | 🟡 In review | [#11](https://github.com/zander-zilla/TailwindTraders-Website/pull/11) |
-| 8 | AI: semantic search (pgvector + Amazon Bedrock) | ⚪ Planned | — |
+| 8 | AI: semantic product search (pgvector + Amazon Bedrock Titan embeddings; offline provider locally), optional RAG assistant | 🟡 In review | Phase 8 PR |
 
 Details, estimates and risks: [PLAN.md](PLAN.md).
 

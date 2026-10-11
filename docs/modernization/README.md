@@ -70,11 +70,12 @@ flowchart LR
 | 5 | AWS IaC (Terraform: VPC, EKS Graviton, Aurora PG17 Serverless v2, DynamoDB, ECR, Pod Identity, GitHub OIDC) + `deploy-aws` CI/CD | ✅ Merged (code validated; **not applied** yet) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
 | 6 | OpenTelemetry (traces/metrics/logs, browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch agent → X-Ray/Application Signals on EKS, HTTP resilience | ✅ Merged | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
 | 7 | Frontend: CRA → Vite 7, React 18, react-router 7; ACS/B2C/App Insights/Fluent removed; Vitest + Playwright | 🟡 In review | [#11](https://github.com/zander-zilla/TailwindTraders-Website/pull/11) |
-| 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |
+| 8 | AI: semantic product search (pgvector + Bedrock Titan embeddings; offline provider locally), optional Bedrock RAG assistant | 🟡 In review | Phase 8 PR |
 
 ## Data flow & containers
 - [SQL Server → PostgreSQL data migration with AWS DMS](sqlserver-to-postgres-dms.md) (docs only) and the generated [idempotent schema script](catalog-schema.postgres.sql).
 - [Container image before/after scan](container-scan.md): size and vulnerability comparison (Phase 2).
+- [AI search](ai-search.md): pgvector + Bedrock semantic search, assistant, AWS checklist.
 - [Observability](observability.md): what's instrumented, how to see traces locally (compose/kind) and in CloudWatch/X-Ray.
 - [AWS setup](aws-setup.md): Terraform, bootstrap commands, GitHub variables, cost estimate, teardown.
 - [Kubernetes: kind and EKS](kubernetes.md): chart, values, how to run on kind, and what EKS needs.
@@ -96,3 +97,4 @@ flowchart LR
 | [0011](adr/0011-container-hardening.md) | Container hardening: chiseled runtime, single-RID publish, scan gate | Accepted |
 | [0012](adr/0012-opentelemetry-observability.md) | OpenTelemetry; Aspire dashboard locally, CloudWatch/X-Ray on AWS | Accepted |
 | [0013](adr/0013-vite-react18-frontend.md) | Frontend: Vite + React 18 + react-router 7; drop Azure-only UI | Accepted |
+| [0014](adr/0014-pgvector-bedrock-semantic-search.md) | Semantic search: pgvector + Amazon Bedrock (offline provider locally) | Accepted |
