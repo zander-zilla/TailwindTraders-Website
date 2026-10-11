@@ -21,9 +21,13 @@ export function startBrowserTelemetry(settings) {
   try {
     const provider = new WebTracerProvider({
       resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: settings.serviceName || "tailwindtraders-spa" }),
-      spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: endpoint }))],
+      // Short batch delay: browser tabs often close before the default 5 s timer fires.
+      spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: endpoint }), { scheduledDelayMillis: 1000 })],
     });
     provider.register(); // W3C trace-context propagator + default context manager
+    const flush = () => provider.forceFlush().catch(() => {});
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flush());
 
     const ignoreUrls = [new RegExp("^" + endpoint.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))]; // don't trace the exporter
     registerInstrumentations({
