@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using Pgvector;
 
 namespace Tailwind.Traders.Web.Standalone.Data.Entities
 {
@@ -37,6 +39,18 @@ namespace Tailwind.Traders.Web.Standalone.Data.Entities
         public int? TagId { get; set; }
         public TagEntity Tag { get; set; }
         public List<FeatureEntity> Features { get; set; } = new();
+    }
+
+    /// <summary>Phase 8: one embedding per product and model (pgvector). Kept out of `products` so models can change.</summary>
+    public class ProductEmbeddingEntity
+    {
+        public int ProductId { get; set; }
+        public ProductEntity Product { get; set; }
+        public string Model { get; set; }
+        /// <summary>Hash of the embedded text; re-embed when the product text changes.</summary>
+        public string ContentHash { get; set; }
+        public Vector Embedding { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 
     public class FeatureEntity

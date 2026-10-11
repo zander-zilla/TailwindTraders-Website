@@ -42,7 +42,7 @@ scripts/kind-up.sh --down   # delete the cluster
 ```
 `kind-up.sh` is idempotent. Re-run it after code changes: it rebuilds the image, runs `helm upgrade` (the pre-upgrade migrate hook runs again and reports "Seeding not required") and restarts the pods.
 - `deploy/kind/kind-config.yaml`: one node, host `127.0.0.1:2000` → NodePort 30080.
-- `deploy/kind/dependencies.yaml`: `postgres:17` and `amazon/dynamodb-local` (both multi-arch), ephemeral. They're applied before the chart because the pre-install hook needs them.
+- `deploy/kind/dependencies.yaml`: `pgvector/pgvector:pg17` and `amazon/dynamodb-local` (both multi-arch), ephemeral. They're applied before the chart because the pre-install hook needs them.
 - The compose stack (`docker compose … up`) also uses port 2000. Stop it first (`docker compose -f docker-compose.standalone.yml down`), or change `hostPort`.
 
 ## What EKS needs (Phase 5 IaC)

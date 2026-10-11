@@ -12,6 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.Runtime;
+using Tailwind.Traders.Web.Standalone.Ai;
 using Tailwind.Traders.Web.Standalone.Cart;
 using Tailwind.Traders.Web.Standalone.Data;
 using Tailwind.Traders.Web.Standalone.Services;
@@ -36,6 +37,28 @@ namespace Tailwind.Traders.Web.Standalone
             services.AddSingleton<ICartRepository, DynamoDbCartRepository>();
 
             services.AddTransient<IProductService, ProductService>();
+
+            // Phase 8: semantic search (pgvector) + embeddings. "local" = offline hashing, "bedrock" = Amazon Bedrock
+            // (credentials: AWS SDK default chain, i.e. EKS Pod Identity on AWS). See ADR 0014.
+            services.Configure<AiOptions>(config.GetSection("Ai"));
+            var ai = config.GetSection("Ai").Get<AiOptions>() ?? new AiOptions();
+            if (string.Equals(ai.EmbeddingProvider, "bedrock", StringComparison.OrdinalIgnoreCase))
+            {
+                services.AddSingleton<Amazon.BedrockRuntime.IAmazonBedrockRuntime>(_ =>
+                {
+                    var region = string.IsNullOrEmpty(ai.Region) ? Environment.GetEnvironmentVariable("AWS_REGION") : ai.Region;
+                    return string.IsNullOrEmpty(region)
+                        ? new Amazon.BedrockRuntime.AmazonBedrockRuntimeClient()
+                        : new Amazon.BedrockRuntime.AmazonBedrockRuntimeClient(Amazon.RegionEndpoint.GetBySystemName(region));
+                });
+                services.AddSingleton<IEmbeddingProvider, BedrockEmbeddingProvider>();
+            }
+            else
+            {
+                services.AddSingleton<IEmbeddingProvider, LocalHashingEmbeddingProvider>();
+            }
+            services.AddScoped<ISemanticSearchService, SemanticSearchService>();
+            services.AddScoped<ShoppingAssistant>();
             
             var useCustomVisionApi = !string.IsNullOrEmpty(config["ImagePredictorEndpoint"]);
             if (useCustomVisionApi)
@@ -107,6 +130,11 @@ namespace Tailwind.Traders.Web.Standalone
             using var scope = services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
             await new StandaloneDatabaseInitializer(db, logger).MigrateAndSeedAsync();
+            if (scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiOptions>>().Value.EmbedOnMigrate)
+            {
+                var n = await scope.ServiceProvider.GetRequiredService<ISemanticSearchService>().EmbedCatalogAsync();
+                if (n == 0) logger.LogInformation("Embeddings up to date.");
+            }
             await new CartTableInitializer(
                 scope.ServiceProvider.GetRequiredService<IAmazonDynamoDB>(),
                 scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<CartOptions>>(),

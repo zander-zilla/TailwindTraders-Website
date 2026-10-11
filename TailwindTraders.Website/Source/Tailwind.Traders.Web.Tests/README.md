@@ -7,7 +7,7 @@ PostgreSQL + EF Core, DynamoDB) must keep them green — or consciously change a
 
 ## Prerequisites
 - .NET SDK 10 (as of Phase 1 both projects target `net10.0`; the Phase 0 branch needed the .NET 5 runtime + `libssl1.1`).
-- Docker (Testcontainers starts `postgres:17` and `amazon/dynamodb-local`).
+- Docker (Testcontainers starts `pgvector/pgvector:pg17` and `amazon/dynamodb-local`).
 - No internet access needed for data: seed CSVs are bundled (`Standalone/Data/Seed`).
 
 ## Run

@@ -25,7 +25,7 @@ echo "==> Building $IMAGE for the native architecture ($(uname -m))"
 docker build -t "$IMAGE" "$ROOT/TailwindTraders.Website/Source/Tailwind.Traders.Web"
 kind load docker-image "$IMAGE" --name "$CLUSTER"
 
-echo "==> Local dependencies (postgres:17, dynamodb-local)"
+echo "==> Local dependencies (pgvector/pgvector:pg17, dynamodb-local)"
 kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n "$NS" apply -f "$ROOT/deploy/kind/dependencies.yaml"
 kubectl -n "$NS" rollout status deploy/postgres --timeout=180s
