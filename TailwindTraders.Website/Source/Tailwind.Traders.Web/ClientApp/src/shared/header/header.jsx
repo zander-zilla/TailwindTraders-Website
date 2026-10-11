@@ -10,6 +10,7 @@ import withRouter from "../withRouter";
 import LoginContainer from './components/loginContainer';
 import LoginComponent from './components/loginComponent';
 import UserPortrait from './components/userPortrait';
+import SearchBox from '../search/searchBox';
 
 import Logo from '../../assets/images/logo-horizontal.svg?react';
 import Close from '../../assets/images/icon-close.svg?react';
@@ -124,7 +125,7 @@ class Header extends Component {
                             </button>
                         </nav>
                         <nav className="secondary-nav">
-                            {/* <Search /> */}
+                            <SearchBox />
                             {loggedIn && <Link to="/profile"><UserPortrait {...profile} /></Link>}
                             {loggedIn ? <div className="secondary-nav__login" onClick={this.onClickLogout}>{t('shared.header.logout')}</div>
                                 : <div className="secondary-nav__login" onClick={this.toggleModalClass}>{t('shared.header.login')}</div>}

@@ -32,3 +32,13 @@ test("browse, log in, add to cart", async ({ page }) => {
   await expect(page.locator("body")).toContainText(/\$/);
   expect(errors).toEqual([]);
 });
+
+// Phase 8: semantic search from the header search box (pgvector + local embeddings in compose/kind).
+test("semantic search from the header", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("searchbox", { name: "Search products" }).fill("watering can for my garden");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/search\?q=/);
+  await expect(page.locator(".search-results__item").first()).toContainText(/Watering Can/i);
+  await expect(page.locator(".search-results__score").first()).toContainText("% match");
+});

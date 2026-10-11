@@ -5,6 +5,7 @@ import { CartService } from "./services";
 
 import { Header, Footer, DebugHeader } from "./shared";
 import withRouter from "./shared/withRouter";
+import SearchResults from "./pages/search/searchResults";
 import {
   Home,
   List,
@@ -69,6 +70,7 @@ class App extends Component {
           <Header quantity={quantity} />
           <Routes>
             <Route path="/" element={<RoutedHome />} />
+            <Route path="/search" element={<SearchResults />} />
             <Route path="/list" element={<RoutedList />} />
             <Route path="/list/:code" element={<RoutedList />} />
             <Route path="/suggested-products-list/*" element={<RoutedSuggested />} />
