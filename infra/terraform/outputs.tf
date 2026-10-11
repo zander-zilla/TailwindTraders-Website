@@ -66,9 +66,15 @@ output "helm_values" {
   value = yamlencode({
     image = { repository = aws_ecr_repository.web.repository_url }
     config = {
-      Cart__TableName   = aws_dynamodb_table.cart.name
-      Cart__Region      = var.region
-      Cart__CreateTable = "false"
+      Cart__TableName        = aws_dynamodb_table.cart.name
+      Cart__Region           = var.region
+      Cart__CreateTable      = "false"
+      Ai__EmbeddingProvider  = "bedrock"
+      Ai__Region             = var.region
+      Ai__EmbeddingModelId   = var.bedrock_embedding_model_id
+      Ai__MinScore           = "0.15"
+      Ai__Assistant__Enabled = tostring(var.assistant_enabled)
+      Ai__Assistant__ModelId = var.bedrock_chat_model_id
     }
     secrets = {
       externalSecret = {

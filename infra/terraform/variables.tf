@@ -150,3 +150,22 @@ variable "route53_zone_id" {
   type        = string
   default     = ""
 }
+
+# ---------- Phase 8: Amazon Bedrock (semantic search / assistant) ----------
+variable "bedrock_embedding_model_id" {
+  description = "Bedrock embedding model (1024-dim vectors). Enable model access in the Bedrock console first."
+  type        = string
+  default     = "amazon.titan-embed-text-v2:0"
+}
+
+variable "bedrock_chat_model_id" {
+  description = "Bedrock model for the optional shopping assistant (Converse API). Some regions require an inference profile id, e.g. us.amazon.nova-lite-v1:0."
+  type        = string
+  default     = "amazon.nova-lite-v1:0"
+}
+
+variable "assistant_enabled" {
+  description = "Feature flag for POST /api/v1/assistant (Ai__Assistant__Enabled)."
+  type        = bool
+  default     = false
+}

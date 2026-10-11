@@ -17,6 +17,17 @@ module "app_pod_identity" {
       actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
       resources = [aws_secretsmanager_secret.jwt.arn, module.aurora.cluster_master_user_secret[0].secret_arn]
     },
+    {
+      # Phase 8: embeddings (search + migrate Job) and the optional assistant. Only these two models.
+      # Cross-region inference profiles ("us.<model>") route to the model in several regions, hence region "*".
+      sid     = "BedrockInvoke"
+      actions = ["bedrock:InvokeModel"]
+      resources = [
+        "arn:aws:bedrock:*::foundation-model/${var.bedrock_embedding_model_id}",
+        "arn:aws:bedrock:*::foundation-model/${trimprefix(trimprefix(var.bedrock_chat_model_id, "us."), "eu.")}",
+        "arn:aws:bedrock:${var.region}:${var.account_id}:inference-profile/${var.bedrock_chat_model_id}",
+      ]
+    },
   ]
 
   associations = {
