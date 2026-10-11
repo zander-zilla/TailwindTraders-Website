@@ -35,6 +35,9 @@ namespace Tailwind.Traders.Web
 
         public string LogicAppUrl { get; set; }
 
+        /// <summary>Browser (SPA) tracing. Public by design: only an OTLP/HTTP URL the browser can reach.</summary>
+        public BrowserTelemetrySettings BrowserTelemetry { get; set; } = new BrowserTelemetrySettings();
+
         public Settings Clone()
         {
             var clone = new Settings()
@@ -42,11 +45,19 @@ namespace Tailwind.Traders.Web
                 ApiUrl = ApiUrl,
                 Auth = Auth,
                 ApiUrlShoppingCart = ApiUrlShoppingCart,
-                UseB2C = UseB2C
+                UseB2C = UseB2C,
+                BrowserTelemetry = BrowserTelemetry
             };
 
             return clone;
         }
+    }
+
+    public class BrowserTelemetrySettings
+    {
+        /// <summary>e.g. http://localhost:4318/v1/traces (Aspire dashboard). Empty = browser tracing off.</summary>
+        public string OtlpTracesEndpoint { get; set; } = "";
+        public string ServiceName { get; set; } = "tailwindtraders-spa";
     }
 
     public class B2CAuth

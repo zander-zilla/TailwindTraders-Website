@@ -6,9 +6,11 @@ import App from "./App";
 import './i18n';
 import store from './store';
 import ConfigService from './services/configService';
+import { startBrowserTelemetry } from './telemetry';
 
 (async () => {
     await ConfigService.loadSettings();
+    startBrowserTelemetry(ConfigService._browserTelemetry);
 
     ReactDOM.render(
         <Provider store={store}><App /></Provider>,

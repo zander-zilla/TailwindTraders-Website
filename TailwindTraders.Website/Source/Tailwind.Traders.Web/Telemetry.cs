@@ -60,7 +60,7 @@ namespace Tailwind.Traders.Web
             {
                 o.IncludeScopes = true; // TraceId/SpanId appear in "Scopes"
                 o.UseUtcTimestamp = true;
-                o.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ ";
+                o.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
             });
 
             var serviceName = cfg["OTEL_SERVICE_NAME"] ?? "tailwindtraders-web";
