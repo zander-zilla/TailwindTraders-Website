@@ -79,6 +79,13 @@ jobs:
         npm ci --no-audit --no-fund
         npx playwright install --with-deps chromium
         BASE_URL=http://localhost:2000 npx playwright test
+    - name: Browser spans share traces with the API (OTel web -> traceparent -> ASP.NET Core)
+      run: |
+        sleep 10
+        curl -fsS "http://localhost:18888/api/telemetry/traces?limit=500" > traces.json
+        jq -e '
+          def ids(svc): [.data.resourceSpans[] | select(any(.resource.attributes[]; .value.stringValue == svc)) | .scopeSpans[].spans[].traceId] | unique;
+          (ids("tailwindtraders-spa") as $b | ids("tailwindtraders-web") as $w | [$b[] | select(. as $t | $w | index($t))] | length) > 0' traces.json
     - uses: actions/upload-artifact@v4
       if: failure()
       with:
