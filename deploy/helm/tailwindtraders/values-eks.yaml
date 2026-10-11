@@ -1,5 +1,13 @@
-# Amazon EKS. Infrastructure (Aurora PostgreSQL, DynamoDB table, ECR, IAM, AWS Load Balancer Controller,
-# External Secrets Operator + ClusterSecretStore) is provisioned by IaC in Phase 5. Replace <placeholders>.
+# Amazon EKS. Infrastructure comes from infra/terraform (Phase 5). Every <placeholder> maps to a Terraform output:
+#   image.repository                         <- ecr_repository_url
+#   config.Cart__TableName / Cart__Region    <- cart_table_name / region
+#   secrets.externalSecret.dbSecretKey       <- aurora_master_secret_arn
+#   secrets.externalSecret.dbHost / dbPort   <- aurora_endpoint / aurora_port
+#   secrets.externalSecret.jwtSecretKey      <- jwt_secret_name
+#   ingress.host + certificate-arn           <- domain_name variable / acm_certificate_arn (optional)
+# CI (deploy-aws.yaml) passes these as --set from GitHub repo variables; manually:
+#   terraform -chdir=infra/terraform output -raw helm_values > deploy/helm/tailwindtraders/values-eks.generated.yaml
+#   helm upgrade --install ... -f values-eks.yaml -f values-eks.generated.yaml --set image.tag=<sha>
 image:
   repository: <account>.dkr.ecr.<region>.amazonaws.com/tailwindtraders/web
   tag: <git-sha>              # immutable tags; set by CI (Phase 5)
@@ -21,21 +29,25 @@ secrets:
   mode: externalSecret        # External Secrets Operator <- AWS Secrets Manager
   externalSecret:
     secretStoreRef: { kind: ClusterSecretStore, name: aws-secrets-manager }
-    dbSecretKey: <aurora-managed-secret-name-or-arn>   # JSON with host, port, username, password
+    dbSecretKey: <aurora_master_secret_arn>   # RDS-managed secret: {"username","password"}
+    dbHost: <aurora_endpoint>
+    dbPort: "5432"
     database: tailwind
-    jwtSecretKey: tailwindtraders/jwt-signing-key
+    jwtSecretKey: <jwt_secret_name>
 service:
   type: ClusterIP
 ingress:
   enabled: true
   className: alb              # AWS Load Balancer Controller
-  host: <shop.example.com>
+  host: ""                    # optional domain_name; empty = any host (use the ALB DNS name)
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-    alb.ingress.kubernetes.io/ssl-redirect: "443"
-    alb.ingress.kubernetes.io/certificate-arn: <acm-certificate-arn>
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    # With a domain + ACM certificate, CI adds (or add in values-eks.generated.yaml):
+    #   alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    #   alb.ingress.kubernetes.io/ssl-redirect: "443"
+    #   alb.ingress.kubernetes.io/certificate-arn: <acm_certificate_arn>
     alb.ingress.kubernetes.io/healthcheck-path: /readyz
     alb.ingress.kubernetes.io/group.name: tailwindtraders
 autoscaling:
