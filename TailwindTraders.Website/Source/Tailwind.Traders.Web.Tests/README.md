@@ -2,13 +2,13 @@
 
 Phase 0 of the modernization plan. These xUnit tests boot the website in-process with
 `WebApplicationFactory<Startup>` in **Standalone mode** (in-process product/cart/login APIs backed by
-SQL Server + MongoDB) and pin down what the legacy app returns today. Later phases (.NET 10,
+PostgreSQL 17 (EF Core, since Phase 3a) + MongoDB) and pin down what the legacy app returns today. Later phases (.NET 10,
 PostgreSQL + EF Core, DynamoDB) must keep them green — or consciously change a pinned value.
 
 ## Prerequisites
 - .NET SDK 10 (as of Phase 1 both projects target `net10.0`; the Phase 0 branch needed the .NET 5 runtime + `libssl1.1`).
-- Docker (Testcontainers starts `mcr.microsoft.com/mssql/server:2022-latest` and `mongo:7`).
-- Internet access: on first start the app seeds SQL from CSVs in the TailwindTraders-Backend GitHub repo.
+- Docker (Testcontainers starts `postgres:17` and `mongo:7`).
+- No internet access needed for data: seed CSVs are bundled (`Standalone/Data/Seed`).
 
 ## Run
 ```bash
@@ -17,7 +17,7 @@ dotnet test Tailwind.Traders.Web.Tests -p:BuildingDocker=true   # BuildingDocker
 ```
 To reuse already-running databases instead of Testcontainers:
 ```bash
-export TT_SQL_CONNECTION='Server=localhost,1433;Database=tailwind;User Id=sa;Password=...;TrustServerCertificate=true'
+export TT_PG_CONNECTION='Host=localhost;Database=tailwind;Username=tailwind;Password=...'
 export TT_MONGO_CONNECTION='mongodb://localhost:27017'
 ```
 
@@ -34,3 +34,4 @@ export TT_MONGO_CONNECTION='mongodb://localhost:27017'
 | Legacy bug 4 (fixed Phase 1) | Cart items serialized as `guid` but the UI reads `_cdbid` → UI qty update/delete never matched |
 | Cart | login → add → get → update qty → delete round trip (runs since Phase 1) |
 | Image search | embedded ONNX model classifies an uploaded image (200/404, never 500) |
+| PostgreSQL (Phase 3a) | name search case-insensitive (`microwave`/`MICROWAVE`), `%`/`_` literal, type filter case-insensitive, seeding idempotent + repairs partial seed, no pending migrations, no `connectionStrings` in `/api/settings` |
