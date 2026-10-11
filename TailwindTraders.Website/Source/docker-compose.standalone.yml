@@ -33,6 +33,9 @@ services:
 
   sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    # No arm64 image exists: on Apple Silicon this runs under Docker Desktop's Rosetta amd64 emulation
+    # (Settings > General > "Use Rosetta for x86_64/amd64 emulation on Apple Silicon"). Web + Mongo run natively.
+    platform: linux/amd64
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: "${SQL_SA_PASSWORD:-Passw0rd!123}"
