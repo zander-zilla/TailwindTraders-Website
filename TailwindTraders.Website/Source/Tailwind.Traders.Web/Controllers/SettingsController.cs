@@ -14,9 +14,11 @@ namespace Tailwind.Traders.Web.Controllers
         public SettingsController(IOptionsSnapshot<Settings> settings, IConfiguration config)
         {
             _settings = settings.Value;
-            if (!string.IsNullOrEmpty(_settings.SqlConnectionString))
+            var catalogConnection = config.GetConnectionString("Products");
+            if (!string.IsNullOrEmpty(catalogConnection))
             {
-                var match = Regex.Match(_settings.SqlConnectionString, @"Server=(tcp:)?(?<servername>[^,;]+)");
+                // Debug header shows the catalog DB host (PostgreSQL since Phase 3a). Property name kept for the SPA.
+                var match = Regex.Match(catalogConnection, @"(?i)(Host|Server)=(?<servername>[^,;]+)");
                 _settings.DebugInformation.SqlServerName = match.Groups["servername"].Value;
             }
             if (!string.IsNullOrEmpty(_settings.MongoConnectionString))

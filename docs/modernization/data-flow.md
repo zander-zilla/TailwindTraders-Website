@@ -1,6 +1,7 @@
 # Current-state data flow (before database modernization)
 
 > Derived from the code on branch `phase-1-dotnet10` (after the .NET 10 upgrade, **before** Phase 3a PostgreSQL/EF Core and Phase 3b DynamoDB).
+> **Update (Phase 3a):** the catalog now runs on PostgreSQL 17 + EF Core 10. Sections 2.1, 3 and 4.1–4.4 describe the *legacy* SQL Server behavior, kept for reference. See the "Phase 3a status" column in the [migration impact](#6-migration-impact) table for what changed.
 > Applies to **Standalone mode**, where the web app hosts its own APIs. It is enabled when `SqlConnectionString` is set (`ConfigExtensions.IsStandaloneEnabled`). In "frontend-only" mode the SPA calls the external TailwindTraders-Backend microservices instead (`ApiUrl`, `ApiUrlShoppingCart`); that mode is out of scope.
 >
 > **Verification legend:** ✅ verified at runtime by the baseline tests or manual curl (Phase 0/1) · ⚠️ derived from code only, not exercised at runtime.
@@ -349,20 +350,20 @@ sequenceDiagram
 
 ## 6. Migration impact
 
-| Flow | Current (code) | Phase 3a: PostgreSQL + EF Core 10 | Phase 3b: DynamoDB cart | Notes / tests |
-|---|---|---|---|---|
-| Schema creation | T-SQL `CREATE TABLE` strings at startup | EF Core entities + migrations (migration bundle as Helm hook Job). Add **FKs** + indexes (`products.brand_id/type_id`, `features.product_item_id`); `numeric(9,2)`, `varchar(255)`/`text` | n/a | Decide whether to keep or drop `Tags` (unused) |
-| Seeding | Runtime CSV download, string-bound INSERTs | Vendor CSVs in repo; typed parse (CsvHelper class maps) → `HasData`/`UseAsyncSeeding` or Npgsql `COPY`; one transaction; idempotent | n/a | Golden counts 4/7/70 must hold |
-| Product list + filters | Dapper multi-map, `IN @list`, OR semantics, CI collation | LINQ `Include(Brand, Type)`, `typeCodes.Contains(t.Code)` (→ `= ANY`); keep OR semantics; case-insensitive match on `code` (citext/`ILike`/normalize to lowercase); decide whether unfiltered should return all | n/a | `type=home` → 8 |
-| Product detail | 2 queries + `SELECT *` Features | `Include(Features)`, `AsNoTracking`; decide 404 vs null | n/a | Product 1 golden values |
-| Text search (internal) | `LIKE '%term%'` (CI) | **`EF.Functions.ILike`** (or `citext`/`pg_trgm`); escape `%`/`_` | n/a | Add a test: lowercase term matches capitalized name |
-| Image search | ONNX → `LIKE` search; optional Azure Blob upload | Uses the new search; no other DB change | n/a | Blob → **S3** later (ADR 0006) |
-| Login / JWT | Stateless | none | Username/`sub` becomes the cart partition key | Consider a stable user id claim instead of the name |
-| Get cart | `find({email})` | n/a | **`Query` PK `cartId = <user/session id>`** | Same JSON shape incl. `_cdbid` |
-| Add to cart | `insertOne` (dup lines) | n/a | `PutItem` (PK cartId, **SK productId** → upsert/increment qty per product) + `expiresAt` TTL | Behaviour change: duplicates merge; update the golden test |
-| Update qty | `findOneAndUpdate({email,id})` | n/a | `UpdateItem` key (cartId, productId) with `ConditionExpression attribute_exists` → 404 when missing | Today addressed by line GUID (`_cdbid`); keep `_cdbid` = productId or keep a GUID attribute for UI compatibility |
-| Delete item | `deleteOne({email,id})` | n/a | `DeleteItem` key (cartId, productId) | |
-| Related / landing | Hard-coded `[]` | Optional: implement via catalog (or pgvector in Phase 8) | n/a | |
-| Profile | Hard-coded | none | none | |
-| Settings | Exposes `Cart.AuthKey` | Remove `SqlConnectionString` naming → `ConnectionStrings:Products` | **Remove `Cart` settings + Cosmos DAO**, `MongoConnectionString` | Allow-list DTO for SPA settings |
-| Coupons, full profile | Not implemented (index.html) | Out of scope, or stub JSON endpoints | n/a | Avoid HTML-as-JSON: map `/api/{**}` to 404 before the SPA fallback |
+| Flow | Current (code) | Phase 3a: PostgreSQL + EF Core 10 | Phase 3b: DynamoDB cart | Notes / tests | Phase 3a status |
+|---|---|---|---|---|---|
+| Schema creation | T-SQL `CREATE TABLE` strings at startup | EF Core entities + migrations (migration bundle as Helm hook Job). Add **FKs** + indexes (`products.brand_id/type_id`, `features.product_item_id`); `numeric(9,2)`, `varchar(255)`/`text` | n/a | Decide whether to keep or drop `Tags` (unused) | ✅ Done: EF migration `InitialCatalog`, FKs, FK indexes, unique `types.code`; `Tags` kept (FK from products) but still unused by the API |
+| Seeding | Runtime CSV download, string-bound INSERTs | Vendor CSVs in repo; typed parse (CsvHelper class maps) → `HasData`/`UseAsyncSeeding` or Npgsql `COPY`; one transaction; idempotent | n/a | Golden counts 4/7/70 must hold | ✅ Done: vendored CSVs, CsvHelper class maps, one transaction, insert-missing-by-Id; run via `--migrate` |
+| Product list + filters | Dapper multi-map, `IN @list`, OR semantics, CI collation | LINQ `Include(Brand, Type)`, `typeCodes.Contains(t.Code)` (→ `= ANY`); keep OR semantics; case-insensitive match on `code` (citext/`ILike`/normalize to lowercase); decide whether unfiltered should return all | n/a | `type=home` → 8 | ✅ Done: LINQ `Contains` (`= ANY`), OR semantics kept, type codes lower-cased; **unfiltered still returns 0** (kept deliberately); results now ordered by id |
+| Product detail | 2 queries + `SELECT *` Features | `Include(Features)`, `AsNoTracking`; decide 404 vs null | n/a | Product 1 golden values | ✅ Done: `Include` + `AsSplitQuery`, features ordered by id; not-found still `Ok(null)` (kept) |
+| Text search (internal) | `LIKE '%term%'` (CI) | **`EF.Functions.ILike`** (or `citext`/`pg_trgm`); escape `%`/`_` | n/a | Add a test: lowercase term matches capitalized name | ✅ Done: `EF.Functions.ILike` + escaped wildcards (tests for lower/upper case and `%`/`_`) |
+| Image search | ONNX → `LIKE` search; optional Azure Blob upload | Uses the new search; no other DB change | n/a | Blob → **S3** later (ADR 0006) | ✅ Works on Postgres (smoke test + manual 200) |
+| Login / JWT | Stateless | none | Username/`sub` becomes the cart partition key | Consider a stable user id claim instead of the name | unchanged |
+| Get cart | `find({email})` | n/a | **`Query` PK `cartId = <user/session id>`** | Same JSON shape incl. `_cdbid` | n/a (Phase 3b or unchanged) |
+| Add to cart | `insertOne` (dup lines) | n/a | `PutItem` (PK cartId, **SK productId** → upsert/increment qty per product) + `expiresAt` TTL | Behaviour change: duplicates merge; update the golden test | n/a (Phase 3b or unchanged) |
+| Update qty | `findOneAndUpdate({email,id})` | n/a | `UpdateItem` key (cartId, productId) with `ConditionExpression attribute_exists` → 404 when missing | Today addressed by line GUID (`_cdbid`); keep `_cdbid` = productId or keep a GUID attribute for UI compatibility | n/a (Phase 3b or unchanged) |
+| Delete item | `deleteOne({email,id})` | n/a | `DeleteItem` key (cartId, productId) | | n/a (Phase 3b or unchanged) |
+| Related / landing | Hard-coded `[]` | Optional: implement via catalog (or pgvector in Phase 8) | n/a | | unchanged |
+| Profile | Hard-coded | none | none | | unchanged |
+| Settings | Exposes `Cart.AuthKey` | Remove `SqlConnectionString` naming → `ConnectionStrings:Products` | **Remove `Cart` settings + Cosmos DAO**, `MongoConnectionString` | Allow-list DTO for SPA settings | ✅ `SqlConnectionString` removed → `ConnectionStrings:Products`; debug header parses `Host=`; Cart/Mongo items remain for 3b |
+| Coupons, full profile | Not implemented (index.html) | Out of scope, or stub JSON endpoints | n/a | Avoid HTML-as-JSON: map `/api/{**}` to 404 before the SPA fallback | unchanged |

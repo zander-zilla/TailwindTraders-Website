@@ -1,139 +1,81 @@
 using System.Collections.Generic;
-using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
-using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Tailwind.Traders.Web.Standalone.Data;
+using Tailwind.Traders.Web.Standalone.Data.Entities;
 using Tailwind.Traders.Web.Standalone.Models;
 
 namespace Tailwind.Traders.Web.Standalone.Services
 {
+    /// <summary>Catalog queries via EF Core 10 + Npgsql (replaces Dapper + hand-written T-SQL).</summary>
     public class ProductService : IProductService
     {
-        private readonly SqlConnection sqlConnection;
+        private readonly CatalogDbContext db;
         private readonly string productImagesUrl;
 
-        public ProductService(SqlConnection sqlConnection, IOptions<Settings> settings)
+        public ProductService(CatalogDbContext db, IOptions<Settings> settings)
         {
-            this.sqlConnection = sqlConnection;
-            
+            this.db = db;
             var basePath = settings.Value.ProductImagesUrl;
-            productImagesUrl = string.IsNullOrEmpty(basePath) ? 
-                "https://tailwindtraders.blob.core.windows.net/product-detail" :
-                basePath;
+            productImagesUrl = string.IsNullOrEmpty(basePath)
+                ? "https://tailwindtraders.blob.core.windows.net/product-detail"
+                : basePath;
         }
 
-        public async Task<IEnumerable<ProductBrand>> GetBrands()
-        {
-            await OpenConnection();
-            var brands = await sqlConnection.QueryAsync<ProductBrand>(@"
-                SELECT 
-                    b.Id
-                    ,b.Name
-                FROM Brands as b
-            ");
-            return brands;
-        }
+        public async Task<IEnumerable<ProductBrand>> GetBrands() =>
+            await db.Brands.AsNoTracking().OrderBy(b => b.Id)
+                .Select(b => new ProductBrand { Id = b.Id, Name = b.Name }).ToListAsync();
+
+        public async Task<IEnumerable<ProductType>> GetTypes() =>
+            await db.Types.AsNoTracking().OrderBy(t => t.Id)
+                .Select(t => new ProductType { Id = t.Id, Code = t.Code, Name = t.Name }).ToListAsync();
 
         public async Task<Product> GetProduct(int id)
         {
-            await OpenConnection();
-            var results = await sqlConnection.QueryAsync<Product, ProductBrand, ProductType, Product>(@"
-                SELECT p.Id
-                    ,p.Name
-                    ,Price
-                    ,ImageName as ImageUrl
-                    ,BrandId
-                    ,TypeId
-                    ,TagId
-                    ,b.Id
-                    ,b.Name
-                    ,t.Id
-                    ,t.Code
-                    ,t.Name
-                FROM Products as p
-                INNER JOIN Brands as b ON p.BrandId = b.Id
-                INNER JOIN Types as t ON p.TypeId = t.Id
-                WHERE p.Id = @Id
-            ", (p, b, t) =>
-            {
-                p.Brand = b;
-                p.Type = t;
-                p.ImageUrl = $"{productImagesUrl}/{p.ImageUrl}";
-                return p;
-            }, new { Id = id });
+            var p = await db.Products.AsNoTracking()
+                .Include(x => x.Brand).Include(x => x.Type).Include(x => x.Features)
+                .AsSplitQuery()
+                .SingleOrDefaultAsync(x => x.Id == id);
+            if (p == null) return null; // legacy behavior kept: controller returns Ok(null)
 
-            var product = results.FirstOrDefault();
-
-            if (product != null)
-            {
-                product.Features = await sqlConnection.QueryAsync<ProductFeature>(@"
-                    SELECT * FROM Features WHERE ProductItemId = @Id
-                ", new { Id = id });
-            }
-
+            var product = ToModel(p);
+            product.Features = p.Features.OrderBy(f => f.Id)
+                .Select(f => new ProductFeature { Id = f.Id, Title = f.Title, Description = f.Description }).ToList();
             return product;
         }
 
         public async Task<IEnumerable<Product>> GetProducts(int[] brandIds = null, string[] typeCodes = null, string searchTerm = "")
         {
-            await OpenConnection();
-            var products = await sqlConnection.QueryAsync<Product, ProductBrand, ProductType, Product>(@"
-                SELECT p.Id
-                    ,p.Name
-                    ,Price
-                    ,ImageName as ImageUrl
-                    ,BrandId
-                    ,TypeId
-                    ,TagId
-                    ,b.Id
-                    ,b.Name
-                    ,t.Id
-                    ,t.Code
-                    ,t.Name
-                FROM Products as p
-                INNER JOIN Brands as b ON p.BrandId = b.Id
-                INNER JOIN Types as t ON p.TypeId = t.Id
-                WHERE
-                    t.Code IN @TypeCodes OR 
-                    b.Id IN @BrandIds OR
-                    p.Name LIKE @SearchKeyword
-            ", (p, b, t) =>
-            {
-                p.Brand = b;
-                p.Type = t;
-                p.ImageUrl = $"{productImagesUrl}/{p.ImageUrl}";
-                return p;
-            }, new
-            {
-                TypeCodes = typeCodes,
-                BrandIds = brandIds,
-                SearchKeyword = string.IsNullOrEmpty(searchTerm) ? null : $"%{searchTerm}%"
-            });
+            // Legacy semantics kept: brand OR type OR name-search; no filter => no products.
+            var brands = brandIds ?? new int[0];
+            // SQL Server compared type codes case-insensitively (CI collation); normalize to lower case.
+            var types = (typeCodes ?? new string[0]).Where(c => c != null).Select(c => c.ToLowerInvariant()).ToArray();
+            var pattern = string.IsNullOrEmpty(searchTerm) ? null : "%" + EscapeLike(searchTerm) + "%";
 
-            return products;
+            var rows = await db.Products.AsNoTracking()
+                .Include(x => x.Brand).Include(x => x.Type)
+                .Where(p => types.Contains(p.Type.Code.ToLower())             // was: t.Code IN @TypeCodes
+                         || brands.Contains(p.BrandId)                        // was: b.Id IN @BrandIds   (-> = ANY(@p))
+                         || (pattern != null && EF.Functions.ILike(p.Name, pattern))) // was: LIKE (CI) -> ILIKE
+                .OrderBy(p => p.Id)
+                .ToListAsync();
+
+            return rows.Select(ToModel).ToList();
         }
 
-        public async Task<IEnumerable<ProductType>> GetTypes()
+        private Product ToModel(ProductEntity p) => new Product
         {
-            await OpenConnection();
-            var types = await sqlConnection.QueryAsync<ProductType>(@"
-                SELECT 
-                    t.Id
-                    ,t.Code
-                    ,t.Name
-                FROM Types as t
-            ");
-            return types;
-        }
+            Id = p.Id,
+            Name = p.Name,
+            Price = p.Price,
+            ImageUrl = $"{productImagesUrl}/{p.ImageName}",
+            Brand = new ProductBrand { Id = p.Brand.Id, Name = p.Brand.Name },
+            Type = new ProductType { Id = p.Type.Id, Code = p.Type.Code, Name = p.Type.Name },
+        };
 
-        private async Task OpenConnection()
-        {
-            try
-            {
-                await sqlConnection.OpenAsync();
-            }
-            catch {}
-        }
+        // Npgsql ILIKE uses '\' as the default escape character; make %, _ and \ in user input literal.
+        private static string EscapeLike(string s) => s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
     }
 }

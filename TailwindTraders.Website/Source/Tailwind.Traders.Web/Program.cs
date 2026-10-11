@@ -1,4 +1,7 @@
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -20,6 +23,22 @@ builder.Services.Configure<Settings>(builder.Configuration);
 builder.Services.AddStandalone(builder.Configuration, startupLogger);
 
 var app = builder.Build();
+
+// Separate migrate step (Kubernetes Job / compose "migrate" service): apply EF Core migrations + seed, then exit.
+if (args.Contains("--migrate"))
+{
+    if (!builder.Configuration.IsStandaloneEnabled())
+    {
+        startupLogger.LogError("--migrate requires ConnectionStrings:Products");
+        return 1;
+    }
+    await ConfigExtensions.MigrateAndSeedAsync(app.Services, startupLogger);
+    return 0;
+}
+if (builder.Configuration.IsStandaloneEnabled() && builder.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    await ConfigExtensions.MigrateAndSeedAsync(app.Services, startupLogger); // local dev / tests convenience
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -55,7 +74,8 @@ if (spaFiles != null)
     app.MapFallbackToFile("index.html", new StaticFileOptions { FileProvider = spaFiles });
 }
 
-app.Run();
+await app.RunAsync();
+return 0;
 
 // Exposed for WebApplicationFactory<Program> in tests.
 public partial class Program { }

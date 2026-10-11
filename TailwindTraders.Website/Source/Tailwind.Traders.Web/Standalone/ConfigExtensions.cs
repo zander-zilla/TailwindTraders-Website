@@ -1,5 +1,5 @@
 using System;
-using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.IO;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,10 +24,10 @@ namespace Tailwind.Traders.Web.Standalone
                 return;
             }
 
-            services.AddScoped<SqlConnection>(
-                _ => new SqlConnection(config["SqlConnectionString"]));
+            services.AddDbContextPool<CatalogDbContext>(o => CatalogDbContext.Configure(o, GetCatalogConnectionString(config)));
 
-            var mongoConnectionString = config["MongoConnectionString"] ?? "mongodb://localhost:27017";
+            // appsettings.json ships MongoConnectionString = "" so `??` never applied (legacy bug); treat empty as unset.
+            var mongoConnectionString = string.IsNullOrEmpty(config["MongoConnectionString"]) ? "mongodb://localhost:27017" : config["MongoConnectionString"];
             var mongoClientSettings = MongoClientSettings.FromConnectionString(mongoConnectionString);
             // App Insights dependency tracking for Mongo removed (Azure-specific); OpenTelemetry arrives in Phase 6.
             var mongoClient = new MongoClient(mongoClientSettings);
@@ -69,8 +69,6 @@ namespace Tailwind.Traders.Web.Standalone
                 };
             });
 
-            var initializer = new StandaloneDatabaseInitializer(logger, config["SqlConnectionString"]);
-            initializer.Seed().Wait();
         }
 
         public static void UseStandalone(this IApplicationBuilder app, IConfiguration config, ILogger logger)
@@ -93,7 +91,18 @@ namespace Tailwind.Traders.Web.Standalone
 
         public static bool IsStandaloneEnabled(this IConfiguration config)
         {
-            return !string.IsNullOrEmpty(config["SqlConnectionString"]);
+            return !string.IsNullOrEmpty(GetCatalogConnectionString(config));
+        }
+
+        /// <summary>PostgreSQL connection string for the catalog: ConnectionStrings:Products (env ConnectionStrings__Products).</summary>
+        public static string GetCatalogConnectionString(IConfiguration config) => config.GetConnectionString("Products");
+
+        /// <summary>Apply migrations + idempotent seed. Used by `--migrate` and Database:MigrateOnStartup.</summary>
+        public static async System.Threading.Tasks.Task MigrateAndSeedAsync(IServiceProvider services, ILogger logger)
+        {
+            using var scope = services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+            await new StandaloneDatabaseInitializer(db, logger).MigrateAndSeedAsync();
         }
     }
 }
