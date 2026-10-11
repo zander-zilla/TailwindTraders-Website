@@ -41,6 +41,14 @@ namespace Tailwind.Traders.Web.Tests
         }
 
         [Fact]
+        public async Task Healthz_liveness_returns_healthy()
+        {
+            var r = await _fx.Factory.CreateClient().GetAsync("/healthz");
+            Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+            Assert.Equal("Healthy", await r.Content.ReadAsStringAsync());
+        }
+
+        [Fact]
         public async Task Products_list_returns_seeded_catalog()
         {
             var json = await Json(await _fx.Factory.CreateClient().GetAsync("/api/v1/products"));
