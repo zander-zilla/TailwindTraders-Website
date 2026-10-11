@@ -31,7 +31,7 @@ See the architecture diagrams in **[docs/modernization](docs/modernization/READM
 | 4 | Kubernetes: new Helm chart (hardened, probes, HPA/PDB, migrate hook Job), kind locally, EKS values (ALB, Secrets Manager via ESO, Pod Identity) | ✅ Done | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
 | 5 | AWS infrastructure as Terraform + `deploy-aws` GitHub Actions (OIDC → ECR → EKS); validated, **not yet applied** | ✅ Done (not yet applied) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
 | 6 | Observability: OpenTelemetry end to end (browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch/X-Ray on EKS, HTTP resilience | ✅ Done | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
-| 7 | Frontend: Vite 7, React 18, react-router 7; Azure-only UI (ACS video/chat, B2C, App Insights) removed; Vitest + Playwright | 🟡 In review | Phase 7 PR |
+| 7 | Frontend: Vite 7, React 18, react-router 7; Azure-only UI (ACS video/chat, B2C, App Insights) removed; Vitest + Playwright | 🟡 In review | [#11](https://github.com/zander-zilla/TailwindTraders-Website/pull/11) |
 | 8 | AI: semantic search (pgvector + Amazon Bedrock) | ⚪ Planned | — |
 
 Details, estimates and risks: [PLAN.md](PLAN.md).
