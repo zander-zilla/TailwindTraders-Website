@@ -112,6 +112,14 @@ namespace Tailwind.Traders.Web.Tests
         }
 
         [Fact]
+        public async Task Readyz_checks_postgres_and_dynamodb()
+        {
+            var r = await _fx.Factory.CreateClient().GetAsync("/readyz");
+            Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+            Assert.Equal("Healthy", await r.Content.ReadAsStringAsync());
+        }
+
+        [Fact]
         public async Task Login_and_shopping_cart_round_trip()
         {
             var c = _fx.Factory.CreateClient();

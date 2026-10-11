@@ -1,0 +1,51 @@
+# Amazon EKS. Infrastructure (Aurora PostgreSQL, DynamoDB table, ECR, IAM, AWS Load Balancer Controller,
+# External Secrets Operator + ClusterSecretStore) is provisioned by IaC in Phase 5. Replace <placeholders>.
+image:
+  repository: <account>.dkr.ecr.<region>.amazonaws.com/tailwindtraders/web
+  tag: <git-sha>              # immutable tags; set by CI (Phase 5)
+  pullPolicy: IfNotPresent    # node role pulls from ECR
+replicaCount: 2
+serviceAccount:
+  create: true
+  name: tailwindtraders-web
+  # EKS Pod Identity: create the association (namespace + this SA -> IAM role with DynamoDB access on the
+  # tt-cart table); no annotation needed. If you use IRSA instead, set:
+  annotations: {}
+  #  eks.amazonaws.com/role-arn: arn:aws:iam::<account>:role/tailwindtraders-web
+config:
+  Cart__TableName: tt-cart
+  Cart__Region: <region>
+  Cart__ServiceUrl: ""        # real DynamoDB endpoint
+  Cart__CreateTable: "false"  # the table is owned by IaC (on-demand, TTL on expiresAt)
+secrets:
+  mode: externalSecret        # External Secrets Operator <- AWS Secrets Manager
+  externalSecret:
+    secretStoreRef: { kind: ClusterSecretStore, name: aws-secrets-manager }
+    dbSecretKey: <aurora-managed-secret-name-or-arn>   # JSON with host, port, username, password
+    database: tailwind
+    jwtSecretKey: tailwindtraders/jwt-signing-key
+service:
+  type: ClusterIP
+ingress:
+  enabled: true
+  className: alb              # AWS Load Balancer Controller
+  host: <shop.example.com>
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: <acm-certificate-arn>
+    alb.ingress.kubernetes.io/healthcheck-path: /readyz
+    alb.ingress.kubernetes.io/group.name: tailwindtraders
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits: { memory: 512Mi }

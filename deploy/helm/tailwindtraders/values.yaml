@@ -1,0 +1,109 @@
+# Defaults: secure, environment-neutral. Override with values-kind.yaml or values-eks.yaml.
+image:
+  repository: tailwindtraders/web
+  tag: local
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+replicaCount: 2
+
+serviceAccount:
+  create: true
+  name: ""
+  # EKS Pod Identity needs no annotation (association is made in IAM/EKS). For IRSA set:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::<account>:role/tailwindtraders-web
+  annotations: {}
+
+# Non-secret app config -> ConfigMap (env vars; ASP.NET Core "__" = ":").
+config:
+  ApiUrl: /api/v1
+  ApiUrlShoppingCart: /api/v1
+  Cart__TableName: tt-cart
+  Cart__Region: us-east-1
+  Cart__ServiceUrl: ""          # DynamoDB Local endpoint (kind only); empty in AWS
+  Cart__CreateTable: "false"    # true only where the migrate Job may create the table (kind)
+  Cart__TtlDays: "30"
+  Logging__LogLevel__Default: Information
+
+# Secrets -> env vars from a Kubernetes Secret.
+#   mode: secret          -> chart creates the Secret from secrets.values (local/dev only)
+#   mode: externalSecret  -> External Secrets Operator syncs it from AWS Secrets Manager
+#   mode: existing        -> use secrets.existingSecretName (created out of band)
+secrets:
+  mode: secret
+  existingSecretName: ""
+  values:
+    ConnectionStrings__Products: ""
+    SecurityKey: ""            # JWT signing key (>= 32 bytes); empty = built-in demo key
+  externalSecret:
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: aws-secrets-manager
+    refreshInterval: 1h
+    # Secrets Manager secret holding the Aurora credentials (RDS-managed secret JSON: username, password, host, port).
+    dbSecretKey: ""
+    database: tailwind
+    # Optional Secrets Manager secret (plain string) for the JWT key.
+    jwtSecretKey: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  nodePort: null
+
+ingress:
+  enabled: false
+  className: ""                 # "alb" on EKS (AWS Load Balancer Controller); any controller on kind
+  annotations: {}
+  host: ""
+  tls: []
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 512Mi }     # no CPU limit (avoid throttling); memory limit protects the node
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+probes:
+  liveness: { path: /healthz, initialDelaySeconds: 5, periodSeconds: 10, failureThreshold: 3 }
+  readiness: { path: /readyz, initialDelaySeconds: 5, periodSeconds: 10, failureThreshold: 3 }
+  startup: { path: /healthz, periodSeconds: 2, failureThreshold: 30 }
+
+# Migrations + seed (+ cart table if Cart__CreateTable) as a Helm pre-install/pre-upgrade hook Job (`--migrate`).
+migrate:
+  enabled: true
+  backoffLimit: 6
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 600
+  serviceAccountName: ""        # set if the Job needs AWS access (only when Cart__CreateTable=true against real AWS)
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1654               # "app" user of the chiseled .NET image
+  runAsGroup: 1654
+  fsGroup: 1654
+  seccompProfile: { type: RuntimeDefault }
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: [ALL] }
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+podAnnotations: {}
