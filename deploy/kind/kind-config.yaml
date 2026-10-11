@@ -9,3 +9,11 @@ nodes:
         hostPort: 2000         # http://localhost:2000
         listenAddress: "127.0.0.1"
         protocol: TCP
+      - containerPort: 30888   # Aspire dashboard UI
+        hostPort: 18888        # http://localhost:18888
+        listenAddress: "127.0.0.1"
+        protocol: TCP
+      - containerPort: 30318   # Aspire dashboard OTLP/HTTP (browser spans)
+        hostPort: 4318
+        listenAddress: "127.0.0.1"
+        protocol: TCP

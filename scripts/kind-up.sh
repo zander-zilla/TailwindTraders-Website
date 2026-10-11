@@ -13,6 +13,9 @@ CHART="$ROOT/deploy/helm/tailwindtraders"
 if [[ "${1:-}" == "--down" ]]; then kind delete cluster --name "$CLUSTER"; exit 0; fi
 for t in docker kind kubectl helm; do command -v "$t" >/dev/null || { echo "missing $t (brew install kind helm kubectl)"; exit 1; }; done
 
+if kind get clusters | grep -qx "$CLUSTER" && ! docker port "$CLUSTER-control-plane" 30888/tcp >/dev/null 2>&1; then
+  echo "NOTE: cluster predates Phase 6 (no dashboard port mappings); run 'scripts/kind-up.sh --down' then re-run for http://localhost:18888"
+fi
 if ! kind get clusters | grep -qx "$CLUSTER"; then
   kind create cluster --name "$CLUSTER" --config "$ROOT/deploy/kind/kind-config.yaml" --wait 120s
 fi
@@ -27,6 +30,7 @@ kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n "$NS" apply -f "$ROOT/deploy/kind/dependencies.yaml"
 kubectl -n "$NS" rollout status deploy/postgres --timeout=180s
 kubectl -n "$NS" rollout status deploy/dynamodb --timeout=180s
+kubectl -n "$NS" rollout status deploy/aspire-dashboard --timeout=180s
 
 echo "==> Helm install (pre-install hook runs --migrate)"
 # Restart pods on re-runs so a rebuilt :local image is picked up.
@@ -38,4 +42,4 @@ for i in $(seq 1 30); do curl -fsS http://localhost:2000/readyz >/dev/null 2>&1 
 curl -fsS http://localhost:2000/healthz && echo " (liveness)"
 curl -fsS http://localhost:2000/readyz && echo " (readiness: postgres + dynamodb)"
 echo
-echo "Open http://localhost:2000   |   kubectl -n $NS get pods   |   scripts/kind-up.sh --down"
+echo "Open http://localhost:2000   |   traces: http://localhost:18888   |   kubectl -n $NS get pods   |   scripts/kind-up.sh --down"
