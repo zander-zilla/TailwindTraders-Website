@@ -35,7 +35,8 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Image size
-      run: docker image ls ${{ env.IMAGE }} --format 'Image size: {{.Size}}' | tee -a "$GITHUB_STEP_SUMMARY"
+      run: |
+        echo "Image size: $(docker image inspect ${{ env.IMAGE }} --format '{{.Size}}' | numfmt --to=si)" | tee -a "$GITHUB_STEP_SUMMARY"
 
     - name: Smoke test (/healthz, runs read-only as non-root)
       run: |
@@ -46,7 +47,7 @@ jobs:
         docker rm -f web
 
     - name: Trivy scan (report all severities)
-      uses: aquasecurity/trivy-action@0.33.1
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         image-ref: ${{ env.IMAGE }}
         format: table
@@ -55,7 +56,7 @@ jobs:
         exit-code: '0'
 
     - name: Trivy gate (fail on CRITICAL)
-      uses: aquasecurity/trivy-action@0.33.1
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         image-ref: ${{ env.IMAGE }}
         format: table
@@ -65,7 +66,7 @@ jobs:
         skip-setup-trivy: true
 
     - name: SBOM (CycloneDX)
-      uses: aquasecurity/trivy-action@0.33.1
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         image-ref: ${{ env.IMAGE }}
         format: cyclonedx
