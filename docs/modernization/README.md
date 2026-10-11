@@ -65,7 +65,7 @@ flowchart LR
 | 1 | .NET 5 → .NET 10, minimal hosting, package upgrades, legacy bug fixes, Node 22 frontend build | ✅ Merged | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
 | 2 | Hardened containers (chiseled, single-RID, Trivy gate, SBOM), local compose full stack | ✅ Merged | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
 | 3a | SQL Server → PostgreSQL 17 with EF Core 10 + Npgsql | ✅ Merged | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
-| 3b | Cart MongoDB → Amazon DynamoDB (PK user, SK product, TTL, server-side prices) | 🟡 In review | Phase 3b PR |
+| 3b | Cart MongoDB → Amazon DynamoDB (PK user, SK product, TTL, server-side prices) | 🟡 In review | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
 | 4 | Amazon EKS + Helm, Secrets Manager, ALB, Pod Identity (optional Terraform/CDK) | ⏳ Not started | — |
 | 5 | CI/CD: GitHub Actions → ECR/EKS via OIDC | ⏳ Not started | — |
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⏳ Not started | — |
