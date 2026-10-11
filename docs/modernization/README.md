@@ -68,7 +68,7 @@ flowchart LR
 | 3b | Cart MongoDB → Amazon DynamoDB (PK user, SK product, TTL, server-side prices) | ✅ Merged | [#7](https://github.com/zander-zilla/TailwindTraders-Website/pull/7) |
 | 4 | Kubernetes: new Helm chart, migrate hook Job, `/readyz`, kind (`scripts/kind-up.sh`) + EKS values (ALB, ESO/Secrets Manager, Pod Identity) | ✅ Merged (kind verified; EKS pending AWS account) | [#8](https://github.com/zander-zilla/TailwindTraders-Website/pull/8) |
 | 5 | AWS IaC (Terraform: VPC, EKS Graviton, Aurora PG17 Serverless v2, DynamoDB, ECR, Pod Identity, GitHub OIDC) + `deploy-aws` CI/CD | ✅ Merged (code validated; **not applied** yet) | [#9](https://github.com/zander-zilla/TailwindTraders-Website/pull/9) |
-| 6 | OpenTelemetry (traces/metrics/logs, browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch agent → X-Ray/Application Signals on EKS, HTTP resilience | 🟡 In review | Phase 6 PR |
+| 6 | OpenTelemetry (traces/metrics/logs, browser → API → PostgreSQL/DynamoDB), Aspire dashboard locally, CloudWatch agent → X-Ray/Application Signals on EKS, HTTP resilience | 🟡 In review | [#10](https://github.com/zander-zilla/TailwindTraders-Website/pull/10) |
 | 7 | Frontend upgrade (Vite, React 18/19) — stretch | ⏳ Not started | — |
 | 8 | AI features: pgvector semantic search + Amazon Bedrock — optional | ⏳ Not started | — |
 

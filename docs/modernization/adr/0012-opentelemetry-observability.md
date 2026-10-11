@@ -26,6 +26,6 @@ The legacy app used the Application Insights SDK (removed in Phase 1, ADR 0004),
 - Plus: vendor-neutral code. Changing the backend (Grafana/Tempo, Datadog, Honeycomb) is a matter of env vars.
 - Plus: the demo shows browser → API → PostgreSQL/DynamoDB in one trace on a laptop.
 - Plus: CI asserts that spans actually arrive (compose and kind jobs), and a unit test checks trace propagation and the custom metrics.
-- Minus: around 10 new NuGet/npm packages, and the SPA bundle grows by about 60 KB gzip (OTel web SDK).
+- Minus: around 10 new NuGet/npm packages, and the SPA bundle grows (OTel web SDK, tens of KB gzipped).
 - Minus: the local dashboard is anonymous and in-memory (demo only), and browser tracing is off in AWS. CloudWatch RUM would be the AWS-native follow-up.
 - Minus: X-Ray/CloudWatch cost scales with spans and metrics. Sampling and the metric set are tunable in values.
