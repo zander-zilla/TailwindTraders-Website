@@ -1,27 +1,44 @@
-# Local full stack (Phase 2): hardened web image + SQL Server + MongoDB.
-#   docker compose -f docker-compose.standalone.yml up --build
+# Local full stack: hardened web image + PostgreSQL 17 (catalog, EF Core) + MongoDB (cart until Phase 3b).
+# All images are multi-arch: runs natively on Apple Silicon (no emulation needed since Phase 3a).
+#   docker compose -f docker-compose.standalone.yml up -d --build
 #   open http://localhost:2000   (liveness: http://localhost:2000/healthz)
 # Demo credentials only — never reuse these outside local development.
 name: tailwindtraders
 
+x-pg-connection: &pg "Host=postgres;Port=5432;Database=tailwind;Username=tailwind;Password=${PG_PASSWORD:-tailwind-local}"
+
 services:
-  web:
+  # One-shot migrate step (same image, `--migrate`): applies EF Core migrations + idempotent seed, then exits.
+  # In Kubernetes this becomes a Job / Helm pre-install hook (Phase 4).
+  migrate:
+    image: tailwindtraders/web:local
     build:
       context: Tailwind.Traders.Web
       dockerfile: Dockerfile
+    command: ["--migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Products: *pg
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+
+  web:
     image: tailwindtraders/web:local
     depends_on:
-      sql:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       mongo:
         condition: service_healthy
     restart: on-failure
     environment:
-      SqlConnectionString: "Server=sql,1433;Database=master;User Id=sa;Password=${SQL_SA_PASSWORD:-Passw0rd!123};TrustServerCertificate=true"
+      ConnectionStrings__Products: *pg
       MongoConnectionString: "mongodb://mongo:27017"
       ApiUrl: "/api/v1"
       ApiUrlShoppingCart: "/api/v1"
-      # Phase 3a: ConnectionStrings__Products: "Host=postgres;Database=tailwind;Username=tailwind;Password=..."
       # Phase 3b: Cart__TableName: "tt-cart"  AWS__ServiceURL: "http://dynamodb:8000"  AWS_REGION: "us-east-1"
     ports: ["2000:8080"]
     read_only: true            # app writes nothing to disk
@@ -31,21 +48,19 @@ services:
     # No healthcheck here: the chiseled image has no shell/curl. Probe GET /healthz from outside
     # (Kubernetes liveness probe in Phase 4).
 
-  sql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    # No arm64 image exists: on Apple Silicon this runs under Docker Desktop's Rosetta amd64 emulation
-    # (Settings > General > "Use Rosetta for x86_64/amd64 emulation on Apple Silicon"). Web + Mongo run natively.
-    platform: linux/amd64
+  postgres:
+    image: postgres:17
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "${SQL_SA_PASSWORD:-Passw0rd!123}"
-    ports: ["1433:1433"]
+      POSTGRES_DB: tailwind
+      POSTGRES_USER: tailwind
+      POSTGRES_PASSWORD: "${PG_PASSWORD:-tailwind-local}"
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -Q 'SELECT 1' || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U tailwind -d tailwind"]
+      interval: 5s
       timeout: 5s
       retries: 12
-      start_period: 20s
 
   mongo:
     image: mongo:7
@@ -56,15 +71,11 @@ services:
       timeout: 5s
       retries: 6
 
-  # ---- Phase 3a (planned): replaces `sql` ----
-  # postgres:
-  #   image: postgres:17
-  #   environment: { POSTGRES_DB: tailwind, POSTGRES_USER: tailwind, POSTGRES_PASSWORD: "${PG_PASSWORD:-tailwind}" }
-  #   ports: ["5432:5432"]
-  #   healthcheck: { test: ["CMD-SHELL", "pg_isready -U tailwind"], interval: 5s, retries: 10 }
-
   # ---- Phase 3b (planned): replaces `mongo` ----
   # dynamodb:
   #   image: amazon/dynamodb-local:latest
   #   command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
   #   ports: ["8000:8000"]
+
+volumes:
+  pgdata:

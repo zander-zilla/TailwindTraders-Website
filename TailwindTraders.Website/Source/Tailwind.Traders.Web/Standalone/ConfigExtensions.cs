@@ -26,7 +26,8 @@ namespace Tailwind.Traders.Web.Standalone
 
             services.AddDbContextPool<CatalogDbContext>(o => CatalogDbContext.Configure(o, GetCatalogConnectionString(config)));
 
-            var mongoConnectionString = config["MongoConnectionString"] ?? "mongodb://localhost:27017";
+            // appsettings.json ships MongoConnectionString = "" so `??` never applied (legacy bug); treat empty as unset.
+            var mongoConnectionString = string.IsNullOrEmpty(config["MongoConnectionString"]) ? "mongodb://localhost:27017" : config["MongoConnectionString"];
             var mongoClientSettings = MongoClientSettings.FromConnectionString(mongoConnectionString);
             // App Insights dependency tracking for Mongo removed (Azure-specific); OpenTelemetry arrives in Phase 6.
             var mongoClient = new MongoClient(mongoClientSettings);

@@ -29,3 +29,22 @@ jobs:
     - name: Docker build (.NET 10 + Node 22)
       working-directory: TailwindTraders.Website/Source/Tailwind.Traders.Web
       run: docker build . -t tailwindtraders/web:gh-${{ github.sha }}
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Full stack via docker compose (postgres + migrate job + web + mongo)
+      working-directory: TailwindTraders.Website/Source
+      run: |
+        docker compose -f docker-compose.standalone.yml up -d --build --quiet-pull
+        for i in $(seq 1 60); do curl -fsS http://localhost:2000/healthz && break; sleep 3; done
+        docker compose -f docker-compose.standalone.yml ps -a
+        test "$(docker compose -f docker-compose.standalone.yml ps -a migrate --format '{{.ExitCode}}')" = "0"
+        curl -fsS "http://localhost:2000/api/v1/products?type=home" | grep -q '"products":\[{'
+        curl -fsS http://localhost:2000/api/v1/products/1 | grep -q 'Microwave'
+        curl -fsS http://localhost:2000/ | grep -qi '<!doctype html>'
+    - name: Logs on failure
+      if: failure()
+      working-directory: TailwindTraders.Website/Source
+      run: docker compose -f docker-compose.standalone.yml logs
