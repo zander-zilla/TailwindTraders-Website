@@ -8,6 +8,12 @@ replicaCount: 1
 config:
   Cart__ServiceUrl: http://dynamodb:8000
   Cart__CreateTable: "true"   # migrate Job creates the table in DynamoDB Local
+  # OpenTelemetry -> in-cluster Aspire dashboard (deploy/kind/dependencies.yaml), UI on http://localhost:18888
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+  OTEL_SERVICE_NAME: tailwindtraders-web
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=kind
+  BrowserTelemetry__OtlpTracesEndpoint: http://localhost:4318/v1/traces   # browser -> NodePort 30318
 secrets:
   mode: secret
   values:

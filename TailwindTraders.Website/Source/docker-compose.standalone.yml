@@ -2,6 +2,7 @@
 # All images are multi-arch: runs natively on Apple Silicon (no emulation needed since Phase 3a).
 #   docker compose -f docker-compose.standalone.yml up -d --build
 #   open http://localhost:2000   (liveness: http://localhost:2000/healthz)
+#   open http://localhost:18888  (Aspire dashboard: traces, metrics, structured logs)
 # Demo credentials only — never reuse these outside local development.
 name: tailwindtraders
 
@@ -11,6 +12,12 @@ x-cart: &cart
   Cart__TableName: "tt-cart"
   Cart__ServiceUrl: "http://dynamodb:8000"
   Cart__Region: "us-east-1"
+# OpenTelemetry -> local .NET Aspire dashboard (OTLP gRPC). Standard OTEL_* env vars; in AWS they point at the CloudWatch agent / ADOT.
+x-otel: &otel
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18889"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_SERVICE_NAME: "tailwindtraders-web"
+  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment.name=compose"
 
 services:
   # One-shot migrate step (same image, `--migrate`): applies EF Core migrations + idempotent seed, then exits.
@@ -28,7 +35,8 @@ services:
         condition: service_started
     environment:
       ConnectionStrings__Products: *pg
-      <<: *cart
+      <<: [*cart, *otel]
+      OTEL_SERVICE_NAME: "tailwindtraders-migrate"
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -42,7 +50,9 @@ services:
     restart: on-failure
     environment:
       ConnectionStrings__Products: *pg
-      <<: *cart
+      <<: [*cart, *otel]
+      # Browser spans go straight from the browser to the dashboard's OTLP/HTTP port (published on localhost).
+      BrowserTelemetry__OtlpTracesEndpoint: "http://localhost:4318/v1/traces"
       ApiUrl: "/api/v1"
       ApiUrlShoppingCart: "/api/v1"
     ports: ["2000:8080"]
@@ -66,6 +76,18 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  # .NET Aspire dashboard (standalone, multi-arch): OTLP receiver + trace/metric/log UI. Local demo only: no auth.
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6
+    environment:
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+      DASHBOARD__OTLP__CORS__ALLOWEDORIGINS: "http://localhost:2000"   # browser -> OTLP/HTTP
+      DASHBOARD__OTLP__CORS__ALLOWEDHEADERS: "*"
+    ports:
+      - "18888:18888"   # UI
+      - "4318:18890"    # OTLP/HTTP (browser)
+    # 18889 = OTLP/gRPC for the app (container network only)
 
   # Cart store. Multi-arch image (native arm64). In-memory: cart is empty after restart (TTL not enforced locally).
   dynamodb:

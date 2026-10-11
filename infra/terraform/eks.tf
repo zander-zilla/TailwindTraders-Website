@@ -21,6 +21,14 @@ module "eks" {
     vpc-cni                = { before_compute = true }
     eks-pod-identity-agent = { before_compute = true }
     metrics-server         = {} # EKS community add-on (HPA)
+    # CloudWatch agent + Fluent Bit: Container Insights, Application Signals, and an OTLP endpoint
+    # (cloudwatch-agent.amazon-cloudwatch:4316) the app exports traces/metrics to -> X-Ray / CloudWatch.
+    amazon-cloudwatch-observability = {
+      pod_identity_association = [{
+        role_arn        = module.cloudwatch_pod_identity.iam_role_arn
+        service_account = "cloudwatch-agent"
+      }]
+    }
   }
 
   eks_managed_node_groups = {

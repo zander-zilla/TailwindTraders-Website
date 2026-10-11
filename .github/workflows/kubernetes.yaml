@@ -50,13 +50,20 @@ jobs:
         run: |
           set -e
           curl -fsS http://localhost:2000/healthz
-          curl -fsS http://localhost:2000/readyz
+          curl -fsS --retry 10 --retry-all-errors --retry-delay 3 --max-time 15 http://localhost:2000/readyz
           curl -fsS "http://localhost:2000/api/v1/products?type=home" | jq -e '.products | length == 8'
           curl -fsS http://localhost:2000/api/v1/products/1 | jq -e '.name == "Microwave 0.9 Cu. Ft. 900 W"'
           curl -fsS http://localhost:2000/ | grep -qi '<!doctype html>'
           TOKEN=$(curl -fsS -H 'Content-Type: application/json' -d '{"username":"kind@contoso.com","password":"x","grant_type":"password"}' http://localhost:2000/api/v1/login | jq -r .access_token.token)
           curl -fsS -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"detailProduct":{"id":1},"qty":2}' http://localhost:2000/api/v1/shoppingcart
           curl -fsS -H "Authorization: Bearer $TOKEN" http://localhost:2000/api/v1/shoppingcart | jq -e '.[0].qty == 2 and .[0].price == 100'
+      - name: Verify traces reached the Aspire dashboard (OpenTelemetry)
+        run: |
+          set -e
+          sleep 10   # batch export interval
+          curl -fsS "http://localhost:18888/api/telemetry/traces?limit=200" > traces.json
+          jq -e '[.data.resourceSpans[].scopeSpans[].scope.name] | (index("TailwindTraders.Web") != null) and (index("Npgsql") != null) and (index("AWSSDK.DynamoDB") != null)' traces.json
+          jq -r '[.data.resourceSpans[].scopeSpans[].spans[].name] | unique | .[]' traces.json | head -30
       - name: Verify hardening + migrate hook
         run: |
           set -e
@@ -68,7 +75,7 @@ jobs:
         run: |
           helm upgrade tailwindtraders deploy/helm/tailwindtraders -n tailwindtraders -f deploy/helm/tailwindtraders/values-kind.yaml --wait --timeout 5m
           kubectl -n tailwindtraders logs job/tailwindtraders-migrate | grep "Seeding not required"
-          curl -fsS http://localhost:2000/readyz
+          curl -fsS --retry 10 --retry-all-errors --retry-delay 3 --max-time 15 http://localhost:2000/readyz
       - name: Diagnostics on failure
         if: failure()
         run: |

@@ -47,6 +47,16 @@ module "eso_pod_identity" {
   }
 }
 
+module "cloudwatch_pod_identity" {
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "~> 2.9"
+
+  name = "${local.name}-cloudwatch-agent"
+
+  attach_aws_cloudwatch_observability_policy = true                                                        # CloudWatchAgentServerPolicy
+  additional_policy_arns                     = { xray = "arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess" } # traces -> X-Ray
+}
+
 module "lbc_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 2.9"

@@ -77,6 +77,7 @@ const ConfigService = {
       this._acsConnectionString = settingsResponse.data.acs.connectionString;
       this._acsResource = settingsResponse.data.acs.resource;
       this._logicAppUrl = settingsResponse.data.logicAppUrl;
+      this._browserTelemetry = settingsResponse.data.browserTelemetry;
       this._email = settingsResponse.data.email;
       this._customerSupportEnabled = 
             settingsResponse.data.email

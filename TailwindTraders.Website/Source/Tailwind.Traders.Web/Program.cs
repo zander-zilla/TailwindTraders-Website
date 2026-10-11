@@ -17,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 using var startupLoggerFactory = LoggerFactory.Create(l => l.AddConsole());
 var startupLogger = startupLoggerFactory.CreateLogger("Startup");
 
+builder.AddObservability(); // OpenTelemetry (OTEL_* env vars) + JSON logs with trace ids
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 // Liveness (/healthz) = process only. Readiness (/readyz) adds PostgreSQL + DynamoDB checks (tag "ready").
