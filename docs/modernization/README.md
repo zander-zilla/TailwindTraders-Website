@@ -64,8 +64,8 @@ flowchart LR
 | 0 | Baseline characterization tests (xUnit + WebApplicationFactory + Testcontainers) | ✅ Merged | [#1](https://github.com/zander-zilla/TailwindTraders-Website/pull/1) |
 | 1 | .NET 5 → .NET 10, minimal hosting, package upgrades, legacy bug fixes, Node 22 frontend build | ✅ Merged | [#2](https://github.com/zander-zilla/TailwindTraders-Website/pull/2) |
 | 2 | Hardened containers (chiseled, single-RID, Trivy gate, SBOM), local compose full stack | ✅ Merged | [#5](https://github.com/zander-zilla/TailwindTraders-Website/pull/5) |
-| 3a | SQL Server → PostgreSQL with EF Core 10 + Npgsql | ⏳ Not started | — |
-| 3b | Cart MongoDB → Amazon DynamoDB | ⏳ Not started | — |
+| 3a | SQL Server → PostgreSQL 17 with EF Core 10 + Npgsql | ✅ Merged | [#6](https://github.com/zander-zilla/TailwindTraders-Website/pull/6) |
+| 3b | Cart MongoDB → Amazon DynamoDB (PK user, SK product, TTL, server-side prices) | 🟡 In review | Phase 3b PR |
 | 4 | Amazon EKS + Helm, Secrets Manager, ALB, Pod Identity (optional Terraform/CDK) | ⏳ Not started | — |
 | 5 | CI/CD: GitHub Actions → ECR/EKS via OIDC | ⏳ Not started | — |
 | 6 | Health checks, OpenTelemetry → ADOT → CloudWatch/X-Ray | ⏳ Not started | — |
@@ -87,7 +87,7 @@ flowchart LR
 | [0005](adr/0005-fix-settings-secret-leak.md) | Fix connection-string leak via `/api/settings` | Accepted |
 | [0006](adr/0006-target-aws.md) | Target AWS as the cloud platform | Accepted |
 | [0007](adr/0007-ef-core-npgsql-over-dapper.md) | EF Core 10 + Npgsql instead of Dapper | Accepted |
-| [0008](adr/0008-dynamodb-for-cart.md) | Amazon DynamoDB for the shopping cart | Accepted |
+| [0008](adr/0008-dynamodb-for-cart.md) | Amazon DynamoDB for the shopping cart | Accepted (implemented) |
 | [0009](adr/0009-eks-and-helm.md) | Amazon EKS + Helm for hosting | Accepted |
 | [0010](adr/0010-github-oidc-to-aws.md) | GitHub Actions OIDC to AWS IAM | Accepted |
 | [0011](adr/0011-container-hardening.md) | Container hardening: chiseled runtime, single-RID publish, scan gate | Accepted |
