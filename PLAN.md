@@ -3,7 +3,7 @@
 ## Status / next step
 - [x] Phase 0 — Baseline & safety net — DONE (PR open on fork, branch `phase-0-baseline`): 10 xUnit characterization tests (WebApplicationFactory + Testcontainers SQL Server 2022 + Mongo 7), all passing on .NET 5. Found 2 legacy bugs (no UseAuthorization → [Authorize] endpoints 500; login always 400) + unfiltered product list returns 0. Legacy Docker image build not reproduced in the agent box (docker vfs 'invalid argument' error in nested Docker) — see PR.
 - [x] Phase 1 — .NET 5 → .NET 10 LTS — DONE (PR open on fork, branch `phase-1-dotnet10`, base `phase-0-baseline`): net10.0 + minimal hosting; Microsoft.Data.SqlClient; ImageSharp → **SkiaSharp** (ImageSharp 3.x CVEs, 4.x needs a commercial license); CsvHelper 33, Mongo 3.12, OnnxRuntime 1.22, Testcontainers 4.16; Personalizer, App Insights resource ids/subscription id, SpaServices, Razor Error page removed; 4 legacy bugs fixed; frontend builds on Node 22 (sass, react-scripts 5); Dockerfile .NET 10/Node 22 non-root :8080 builds and runs; 11/11 tests pass; 0 vulnerable NuGet packages in the web project. SQL Server + Dapper kept (Phase 3).
-- [ ] Phase 2 — Containerize properly — NOT STARTED
+- [x] Phase 2 — Containerize properly — DONE, PR open (branch `phase-2-containers`, base `main`): chiseled .NET 10 runtime (`noble-chiseled-extra`), single-RID publish (linux-x64/arm64), non-root uid 1654, :8080, read-only FS verified, `/healthz` liveness, compose full stack with healthchecks + Phase 3 placeholders, CI build + smoke + Trivy (fail on CRITICAL) + CycloneDX SBOM. Image 956 MB → 249 MB; runtime CVEs: legacy aspnet:5.0 base 12C/70H (195 total) → 0C/0H (3 total). ADR 0011. Legacy image itself not buildable in the agent box (nested docker vfs error) — base images scanned instead.
 - [ ] Phase 3 — SQL Server → PostgreSQL (EF Core 10 + Npgsql) + MongoDB cart → DynamoDB — NOT STARTED
 - [ ] Phase 4 — Kubernetes on Amazon EKS (Helm, optional Terraform/CDK) — NOT STARTED
 - [ ] Phase 5 — CI/CD with GitHub Actions → ECR/EKS (OIDC) — NOT STARTED
@@ -17,7 +17,7 @@
 - Data layer: **EF Core 10 + Npgsql (Option B) — CHOSEN**; keep-Dapper (Option A) NOT chosen. See §2a.
 - Shopping cart: **MongoDB/Cosmos → Amazon DynamoDB** (AWSSDK.DynamoDBv2, PK = user/session id, TTL for abandoned carts, on-demand capacity, DynamoDB Local/LocalStack locally, IAM via EKS Pod Identity). jsonb/DocumentDB alternatives dropped.
 
-**Next step:** review/merge PR #1 then PR #2 (agent does not merge). Then Phase 2 (hardened chiseled image — current image ~956 MB, Trivy scan, compose with Postgres/DynamoDB Local). Repo: fork `zander-zilla/TailwindTraders-Website` (PRs target the fork only; never upstream).
+**Next step:** review/merge Phase 2 PR (agent does not merge); Phases 0–1 merged to main (PRs #1–#4). Then Phase 3a/3b (hardened chiseled image — current image ~956 MB, Trivy scan, compose with Postgres/DynamoDB Local). Repo: fork `zander-zilla/TailwindTraders-Website` (PRs target the fork only; never upstream).
 Analysis clone (read-only): `/workspace/modernization/TailwindTraders-Website` (shallow, nothing pushed).
 
 ---
