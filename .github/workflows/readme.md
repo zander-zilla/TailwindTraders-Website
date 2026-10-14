@@ -8,6 +8,5 @@
 | `terraform.yaml` | Terraform fmt/validate, tflint, checkov |
 | `deploy-aws.yaml` | Deploy to EKS via GitHub OIDC (skips when AWS vars are unset) |
 | `codeql-analysis.yml` | CodeQL |
-| `tt-website.cicd.yml` | Legacy upstream pipeline (PR docker build only) |
 
-Phase 7 deleted the legacy Azure workflows `container_appservice.yaml`, `regular_appservice.yaml` and `telephony_bot.yaml` (Azure App Service / ACS telephony bot, deprecated actions, never configured on this fork).
+Phase 7 deleted the legacy Azure workflows `container_appservice.yaml`, `regular_appservice.yaml` and `telephony_bot.yaml`, and a follow-up removed `tt-website.cicd.yml` (nightly Azure Web App deploy that failed every night on missing Azure credentials; its Docker build is covered by `container.yaml` and `pr_build_check.yaml`) (Azure App Service / ACS telephony bot, deprecated actions, never configured on this fork).
